@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edeson File Converter</title>
+    <meta name="description" content="A modern, client-side file converter for images, documents, audio, video, and PDF files.">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <span class="logo-text">Edeson</span>
+            <span class="sidebar-subtitle">File Converter</span>
+        </div>
+
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar navigation">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <nav class="sidebar-nav">
+            <a class="nav-link active" data-page="dashboard" aria-label="Dashboard">
+                <i class="fas fa-home"></i>
+                <span>Dashboard</span>
+            </a>
+            <a class="nav-link" data-page="image-converter" aria-label="Image Converter">
+                <i class="fas fa-image"></i>
+                <span>Image Converter</span>
+            </a>
+            <a class="nav-link" data-page="document-converter" aria-label="Document Converter">
+                <i class="fas fa-file-alt"></i>
+                <span>Document Converter</span>
+            </a>
+            <a class="nav-link" data-page="audio-converter" aria-label="Audio Converter">
+                <i class="fas fa-music"></i>
+                <span>Audio Converter</span>
+            </a>
+            <a class="nav-link" data-page="video-converter" aria-label="Video Converter">
+                <i class="fas fa-video"></i>
+                <span>Video Converter</span>
+            </a>
+            <a class="nav-link" data-page="pdf-tools" aria-label="PDF Tools">
+                <i class="fas fa-file-pdf"></i>
+                <span>PDF Tools</span>
+            </a>
+            <a class="nav-link" data-page="history" aria-label="Conversion History">
+                <i class="fas fa-history"></i>
+                <span>History</span>
+            </a>
+            <a class="nav-link" data-page="settings" aria-label="Settings">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </a>
+            <a class="nav-link" data-page="about" aria-label="About">
+                <i class="fas fa-info-circle"></i>
+                <span>About</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <i class="fas fa-shield-alt"></i>
+            <span>Your files never leave your device</span>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+
+        <!-- Top Bar -->
+        <header class="topbar">
+            <button class="topbar-toggle" id="topbarToggle" aria-label="Toggle sidebar">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="topbar-search">
+                <i class="fas fa-search"></i>
+                <input type="text" id="globalSearch" placeholder="Search tools and features..." aria-label="Search tools and features">
+            </div>
+            <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark/light theme">
+                <i class="fas fa-moon"></i>
+            </button>
+        </header>
+
+        <!-- ==================== DASHBOARD SECTION ==================== -->
+        <section class="section" id="section-dashboard">
+            <h1 class="section-heading">Dashboard</h1>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-file-conversion"></i></div>
+                    <div class="stat-info">
+                        <h3 id="statFilesConverted">0</h3>
+                        <p>Files Converted</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-calendar-day"></i></div>
+                    <div class="stat-info">
+                        <h3 id="statTodayConversions">0</h3>
+                        <p>Today's Conversions</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                    <div class="stat-info">
+                        <h3 id="statSuccessful">0</h3>
+                        <p>Successful Conversions</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-times-circle"></i></div>
+                    <div class="stat-info">
+                        <h3 id="statFailed">0</h3>
+                        <p>Failed Conversions</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                    <div class="stat-info">
+                        <h3 id="statRecentFiles">0</h3>
+                        <p>Recent Files</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-database"></i></div>
+                    <div class="stat-info">
+                        <h3 id="statStorageUsed">0 KB</h3>
+                        <p>Storage Used</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-upload-section">
+                <div class="card">
+                    <h2>Quick Upload</h2>
+                    <div class="upload-zone" id="dashUploadZone">
+                        <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                        <h3>Drag & Drop files here</h3>
+                        <p>or click to browse</p>
+                        <p class="upload-hint">Supports images, documents, audio, video, and PDF</p>
+                        <input type="file" id="dashFileInput" multiple aria-label="Upload files for quick conversion">
+                    </div>
+                    <div class="file-preview-area" id="dashFilePreview"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Recent Files</h2>
+                <table class="history-table" id="dashRecentFiles">
+                    <thead>
+                        <tr>
+                            <th>File Name</th>
+                            <th>Type</th>
+                            <th>Size</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dashRecentFilesBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ==================== IMAGE CONVERTER SECTION ==================== -->
+        <section class="section" id="section-image-converter">
+            <h1 class="section-heading">Image Converter</h1>
+            <p class="section-subheading">Convert, resize, crop, and transform your images</p>
+
+            <div class="card">
+                <div class="upload-zone" id="imageUploadZone">
+                    <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                    <h3>Drag & Drop files here</h3>
+                    <p>or click to browse</p>
+                    <p class="upload-hint">Supports PNG, JPG, WEBP, GIF, BMP, SVG, ICO, TIFF, HEIC</p>
+                    <input type="file" id="imageFileInput" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.bmp,.svg,.ico,.tiff,.heic" aria-label="Upload image files for conversion">
+                </div>
+                <div class="file-preview-area" id="imageFilePreview"></div>
+            </div>
+
+            <div class="converter-settings card" id="imageSettings">
+                <h2>Conversion Settings</h2>
+                <div class="settings-grid">
+                    <div class="form-group">
+                        <label for="imageOutputFormat">Output Format</label>
+                        <select id="imageOutputFormat" aria-label="Select output image format">
+                            <option value="png">PNG</option>
+                            <option value="jpg">JPG</option>
+                            <option value="webp">WEBP</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="imageQuality">Quality: <span id="imageQualityValue">90</span>%</label>
+                        <input type="range" id="imageQuality" min="1" max="100" value="90" aria-label="Image quality">
+                    </div>
+                    <div class="form-group resize-group">
+                        <label>Resize</label>
+                        <div class="resize-inputs">
+                            <input type="number" id="imageWidth" placeholder="Width" min="1" aria-label="Image width in pixels">
+                            <span class="resize-separator">x</span>
+                            <input type="number" id="imageHeight" placeholder="Height" min="1" aria-label="Image height in pixels">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="imageKeepRatio" checked aria-label="Keep aspect ratio">
+                                Keep Aspect Ratio
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="imageRotate">Rotate</label>
+                        <select id="imageRotate" aria-label="Rotate image">
+                            <option value="none">None</option>
+                            <option value="90">90&deg;</option>
+                            <option value="180">180&deg;</option>
+                            <option value="270">270&deg;</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="imageFlip">Flip</label>
+                        <select id="imageFlip" aria-label="Flip image">
+                            <option value="none">None</option>
+                            <option value="horizontal">Horizontal</option>
+                            <option value="vertical">Vertical</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="imageOutputName">Output Filename</label>
+                        <input type="text" id="imageOutputName" placeholder="custom-name (optional)" aria-label="Custom output filename">
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-primary" id="imageConvertBtn" aria-label="Convert images">
+                    <i class="fas fa-sync-alt"></i> Convert
+                </button>
+                <button class="btn btn-secondary" id="imageClearBtn" aria-label="Clear all image files">
+                    <i class="fas fa-trash"></i> Clear All
+                </button>
+            </div>
+
+            <div class="results-area" id="imageResults"></div>
+        </section>
+
+        <!-- ==================== DOCUMENT CONVERTER SECTION ==================== -->
+        <section class="section" id="section-document-converter">
+            <h1 class="section-heading">Document Converter</h1>
+
+            <div class="card">
+                <div class="upload-zone" id="docUploadZone">
+                    <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                    <h3>Drag & Drop files here</h3>
+                    <p>or click to browse</p>
+                    <p class="upload-hint">Supports TXT, HTML, MD, JSON, CSV, XML</p>
+                    <input type="file" id="docFileInput" multiple accept=".txt,.html,.md,.json,.csv,.xml" aria-label="Upload document files for conversion">
+                </div>
+                <div class="file-preview-area" id="docFilePreview"></div>
+            </div>
+
+            <div class="converter-settings card" id="docSettings">
+                <h2>Conversion Settings</h2>
+                <div class="settings-grid">
+                    <div class="form-group">
+                        <label for="docConversionType">Conversion Type</label>
+                        <select id="docConversionType" aria-label="Select document conversion type">
+                            <option value="txt-to-html">TXT to HTML</option>
+                            <option value="html-to-txt">HTML to TXT</option>
+                            <option value="json-to-csv">JSON to CSV</option>
+                            <option value="csv-to-json">CSV to JSON</option>
+                            <option value="md-to-html">Markdown to HTML</option>
+                            <option value="html-to-md">HTML to Markdown</option>
+                            <option value="xml-pretty">XML Formatter (Pretty Print)</option>
+                            <option value="xml-minify">XML Minify</option>
+                            <option value="json-pretty">JSON Formatter (Pretty Print)</option>
+                            <option value="json-minify">JSON Minify</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="docOutputName">Output Filename</label>
+                        <input type="text" id="docOutputName" placeholder="custom-name (optional)" aria-label="Custom output filename">
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-primary" id="docConvertBtn" aria-label="Convert documents">
+                    <i class="fas fa-sync-alt"></i> Convert
+                </button>
+                <button class="btn btn-secondary" id="docClearBtn" aria-label="Clear all document files">
+                    <i class="fas fa-trash"></i> Clear All
+                </button>
+            </div>
+
+            <div class="results-area" id="docResults"></div>
+        </section>
+
+        <!-- ==================== AUDIO CONVERTER SECTION ==================== -->
+        <section class="section" id="section-audio-converter">
+            <h1 class="section-heading">Audio Converter</h1>
+            <p class="section-subheading">Convert and edit audio files</p>
+
+            <div class="card">
+                <div class="info-box">
+                    <i class="fas fa-info-circle"></i>
+                    Browser limitations: Only WAV and OGG encoding are supported natively. Some format conversions may not be available.
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="upload-zone" id="audioUploadZone">
+                    <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                    <h3>Drag & Drop files here</h3>
+                    <p>or click to browse</p>
+                    <p class="upload-hint">Supports MP3, WAV, OGG, AAC, M4A, FLAC</p>
+                    <input type="file" id="audioFileInput" multiple accept=".mp3,.wav,.ogg,.aac,.m4a,.flac" aria-label="Upload audio files for conversion">
+                </div>
+                <div class="file-preview-area" id="audioFilePreview"></div>
+            </div>
+
+            <div class="converter-settings card" id="audioSettings">
+                <h2>Conversion Settings</h2>
+                <div class="settings-grid">
+                    <div class="form-group">
+                        <label for="audioOutputFormat">Output Format</label>
+                        <select id="audioOutputFormat" aria-label="Select output audio format">
+                            <option value="wav">WAV</option>
+                            <option value="ogg">OGG</option>
+                        </select>
+                    </div>
+                    <div class="form-group trim-group">
+                        <label>Trim</label>
+                        <div class="trim-inputs">
+                            <div>
+                                <label for="audioTrimStart">Start Time</label>
+                                <input type="time" id="audioTrimStart" step="0.01" value="00:00:00" aria-label="Trim start time">
+                            </div>
+                            <div>
+                                <label for="audioTrimEnd">End Time</label>
+                                <input type="time" id="audioTrimEnd" step="0.01" value="00:00:00" aria-label="Trim end time">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="audioVolume">Volume: <span id="audioVolumeValue">100</span>%</label>
+                        <input type="range" id="audioVolume" min="0" max="200" value="100" aria-label="Audio volume">
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-primary" id="audioConvertBtn" aria-label="Convert audio">
+                    <i class="fas fa-sync-alt"></i> Convert
+                </button>
+                <button class="btn btn-secondary" id="audioClearBtn" aria-label="Clear all audio files">
+                    <i class="fas fa-trash"></i> Clear All
+                </button>
+            </div>
+
+            <div class="results-area" id="audioResults"></div>
+
+            <audio id="audioPreviewPlayer" controls hidden aria-label="Audio preview player"></audio>
+        </section>
+
+        <!-- ==================== VIDEO CONVERTER SECTION ==================== -->
+        <section class="section" id="section-video-converter">
+            <h1 class="section-heading">Video Converter</h1>
+
+            <div class="card">
+                <div class="info-box">
+                    <i class="fas fa-info-circle"></i>
+                    Browser limitations: Video conversion is limited by browser support. MP4 and WebM are generally well supported.
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="upload-zone" id="videoUploadZone">
+                    <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                    <h3>Drag & Drop files here</h3>
+                    <p>or click to browse</p>
+                    <p class="upload-hint">Supports MP4, WebM, MOV, AVI, MKV</p>
+                    <input type="file" id="videoFileInput" multiple accept=".mp4,.webm,.mov,.avi,.mkv" aria-label="Upload video files for conversion">
+                </div>
+                <div class="file-preview-area" id="videoFilePreview"></div>
+            </div>
+
+            <div class="converter-settings card" id="videoSettings">
+                <h2>Conversion Settings</h2>
+                <div class="settings-grid">
+                    <div class="form-group">
+                        <label for="videoOutputFormat">Output Format</label>
+                        <select id="videoOutputFormat" aria-label="Select output video format">
+                            <option value="mp4">MP4</option>
+                            <option value="webm">WebM</option>
+                        </select>
+                    </div>
+                    <div class="form-group trim-group">
+                        <label>Trim</label>
+                        <div class="trim-inputs">
+                            <div>
+                                <label for="videoTrimStart">Start Time</label>
+                                <input type="time" id="videoTrimStart" step="0.01" value="00:00:00" aria-label="Trim start time">
+                            </div>
+                            <div>
+                                <label for="videoTrimEnd">End Time</label>
+                                <input type="time" id="videoTrimEnd" step="0.01" value="00:00:00" aria-label="Trim end time">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="videoMute" aria-label="Mute video">
+                            Mute Video
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <button class="btn btn-secondary" id="videoCaptureThumb" aria-label="Capture thumbnail from video">
+                            <i class="fas fa-camera"></i> Capture Thumbnail
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-primary" id="videoConvertBtn" aria-label="Convert video">
+                    <i class="fas fa-sync-alt"></i> Convert
+                </button>
+                <button class="btn btn-secondary" id="videoClearBtn" aria-label="Clear all video files">
+                    <i class="fas fa-trash"></i> Clear All
+                </button>
+            </div>
+
+            <div class="results-area" id="videoResults"></div>
+
+            <video id="videoPreviewPlayer" controls hidden aria-label="Video preview player"></video>
+        </section>
+
+        <!-- ==================== PDF TOOLS SECTION ==================== -->
+        <section class="section" id="section-pdf-tools">
+            <h1 class="section-heading">PDF Tools</h1>
+            <p class="section-subheading">Create, merge, split, and modify PDF files</p>
+
+            <div class="tool-cards-grid">
+                <div class="pdf-tool-card" data-tool="images-to-pdf" role="button" tabindex="0" aria-label="Images to PDF tool">
+                    <i class="fas fa-images"></i>
+                    <h3>Images to PDF</h3>
+                    <p>Convert images into a PDF document</p>
+                </div>
+                <div class="pdf-tool-card" data-tool="merge-pdfs" role="button" tabindex="0" aria-label="Merge PDFs tool">
+                    <i class="fas fa-compress-arrows-alt"></i>
+                    <h3>Merge PDFs</h3>
+                    <p>Combine multiple PDF files into one</p>
+                </div>
+                <div class="pdf-tool-card" data-tool="split-pdf" role="button" tabindex="0" aria-label="Split PDF tool">
+                    <i class="fas fa-cut"></i>
+                    <h3>Split PDF</h3>
+                    <p>Extract pages from a PDF document</p>
+                </div>
+                <div class="pdf-tool-card" data-tool="rotate-pdf" role="button" tabindex="0" aria-label="Rotate PDF tool">
+                    <i class="fas fa-redo"></i>
+                    <h3>Rotate PDF</h3>
+                    <p>Rotate pages in a PDF document</p>
+                </div>
+                <div class="pdf-tool-card" data-tool="preview-pdf" role="button" tabindex="0" aria-label="Preview PDF tool">
+                    <i class="fas fa-eye"></i>
+                    <h3>Preview PDF</h3>
+                    <p>View the contents of a PDF file</p>
+                </div>
+            </div>
+
+            <div class="pdf-tool-area card" id="pdfToolArea" hidden>
+                <h2 id="pdfToolTitle"></h2>
+
+                <div class="upload-zone" id="pdfUploadZone">
+                    <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                    <h3>Drag & Drop files here</h3>
+                    <p>or click to browse</p>
+                    <p class="upload-hint">Supports PDF files</p>
+                    <input type="file" id="pdfFileInput" multiple accept=".pdf" aria-label="Upload PDF files">
+                </div>
+
+                <div class="converter-settings" id="pdfSettings">
+                    <div class="settings-grid">
+                        <div class="form-group pdf-split-options" id="pdfSplitSettings" hidden>
+                            <label>Page Range</label>
+                            <div class="split-inputs">
+                                <input type="number" id="pdfSplitStart" placeholder="Start page" min="1" aria-label="Split start page">
+                                <span class="resize-separator">to</span>
+                                <input type="number" id="pdfSplitEnd" placeholder="End page" min="1" aria-label="Split end page">
+                            </div>
+                        </div>
+                        <div class="form-group pdf-rotation-options" id="pdfRotationSettings" hidden>
+                            <label for="pdfRotation">Rotation</label>
+                            <select id="pdfRotation" aria-label="Select PDF rotation">
+                                <option value="90">90&deg;</option>
+                                <option value="180">180&deg;</option>
+                                <option value="270">270&deg;</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-primary" id="pdfProcessBtn" aria-label="Process PDF">
+                        <i class="fas fa-cog"></i> Process
+                    </button>
+                    <button class="btn btn-secondary" id="pdfBackBtn" aria-label="Back to PDF tools">
+                        <i class="fas fa-arrow-left"></i> Back to Tools
+                    </button>
+                </div>
+
+                <div class="results-area" id="pdfResults"></div>
+            </div>
+
+            <iframe id="pdfPreviewFrame" hidden title="PDF Preview"></iframe>
+        </section>
+
+        <!-- ==================== HISTORY SECTION ==================== -->
+        <section class="section" id="section-history">
+            <h1 class="section-heading">Conversion History</h1>
+
+            <div class="history-controls">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="historySearch" placeholder="Search history..." aria-label="Search conversion history">
+                </div>
+                <select id="historyFilter" aria-label="Filter history by file type">
+                    <option value="all">All</option>
+                    <option value="image">Images</option>
+                    <option value="document">Documents</option>
+                    <option value="audio">Audio</option>
+                    <option value="video">Video</option>
+                    <option value="pdf">PDF</option>
+                </select>
+                <button class="btn btn-danger" id="clearHistoryBtn" aria-label="Clear all conversion history">
+                    <i class="fas fa-trash"></i> Clear History
+                </button>
+            </div>
+
+            <div class="card">
+                <table class="history-table" id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>File Name</th>
+                            <th>Original Format</th>
+                            <th>Converted Format</th>
+                            <th>Size</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody"></tbody>
+                </table>
+                <div class="empty-state" id="historyEmpty">
+                    <i class="fas fa-history"></i>
+                    <p>No conversion history yet</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== SETTINGS SECTION ==================== -->
+        <section class="section" id="section-settings">
+            <h1 class="section-heading">Settings</h1>
+
+            <div class="settings-cards">
+                <div class="card settings-card">
+                    <h2><i class="fas fa-palette"></i> Appearance</h2>
+                    <div class="form-group">
+                        <label for="settingTheme">Theme</label>
+                        <div class="toggle-switch-group">
+                            <span>Dark</span>
+                            <label class="toggle-switch" for="settingTheme" aria-label="Toggle dark/light theme">
+                                <input type="checkbox" id="settingTheme">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span>Light</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="settingLanguage">Language</label>
+                        <select id="settingLanguage" aria-label="Select language">
+                            <option value="en">English</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="card settings-card">
+                    <h2><i class="fas fa-sliders-h"></i> Conversion Defaults</h2>
+                    <div class="form-group">
+                        <label for="settingDefaultQuality">Default Quality: <span id="settingDefaultQualityValue">90</span>%</label>
+                        <input type="range" id="settingDefaultQuality" min="1" max="100" value="90" aria-label="Default conversion quality">
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="settingAutoRename" checked aria-label="Auto-rename converted files">
+                            Auto-rename converted files
+                        </label>
+                    </div>
+                </div>
+
+                <div class="card settings-card">
+                    <h2><i class="fas fa-database"></i> Storage</h2>
+                    <div class="settings-actions">
+                        <button class="btn btn-secondary" id="clearCacheBtn" aria-label="Clear cache">
+                            <i class="fas fa-broom"></i> Clear Cache
+                        </button>
+                        <button class="btn btn-secondary" id="clearHistoryBtnSettings" aria-label="Clear conversion history">
+                            <i class="fas fa-history"></i> Clear History
+                        </button>
+                        <button class="btn btn-danger" id="resetAppBtn" aria-label="Reset app data">
+                            <i class="fas fa-exclamation-triangle"></i> Reset App
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card settings-card">
+                    <h2><i class="fas fa-shield-alt"></i> Privacy</h2>
+                    <div class="privacy-notice">
+                        <p>All files are processed locally in your browser. No data is ever uploaded to any server.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== ABOUT SECTION ==================== -->
+        <section class="section" id="section-about">
+            <h1 class="section-heading">About</h1>
+
+            <div class="card about-card">
+                <div class="about-logo">
+                    <i class="fas fa-exchange-alt"></i>
+                </div>
+                <h2 class="about-title">Edeson File Converter</h2>
+                <p class="about-version">Version 1.0.0</p>
+                <p class="about-developer">Developed by: <strong>ENDY EDESON</strong></p>
+                <p class="about-description">
+                    Edeson File Converter is a modern, fast, and secure client-side file conversion application.
+                    It allows you to convert images, documents, audio, video, and manipulate PDF files directly in
+                    your browser without uploading any files to a server. Built with privacy and performance in mind,
+                    it ensures your data stays on your device at all times.
+                </p>
+                <h3>Features</h3>
+                <ul class="features-list">
+                    <li><i class="fas fa-check-circle"></i> Image conversion, resizing, and transformation</li>
+                    <li><i class="fas fa-check-circle"></i> Document format conversion (TXT, HTML, Markdown, JSON, CSV, XML)</li>
+                    <li><i class="fas fa-check-circle"></i> Audio format conversion with trimming and volume control</li>
+                    <li><i class="fas fa-check-circle"></i> Video format conversion with trimming and thumbnail capture</li>
+                    <li><i class="fas fa-check-circle"></i> PDF tools: merge, split, rotate, and preview</li>
+                    <li><i class="fas fa-check-circle"></i> 100% client-side processing - no server required</li>
+                    <li><i class="fas fa-check-circle"></i> Dark and Light theme support</li>
+                    <li><i class="fas fa-check-circle"></i> Responsive design for mobile and desktop</li>
+                    <li><i class="fas fa-check-circle"></i> Conversion history tracking</li>
+                    <li><i class="fas fa-check-circle"></i> Drag and drop file upload support</li>
+                </ul>
+                <div class="about-footer">
+                    <p class="license"><i class="fas fa-balance-scale"></i> MIT License - Free to use</p>
+                    <p class="privacy"><i class="fas fa-lock"></i> Your files never leave your browser. 100% client-side processing.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">Developed by ENDY EDESON</footer>
+    </main>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p id="loadingText">Processing...</p>
+    </div>
+
+    <!-- CDN Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
+
+    <!-- App Scripts -->
+    <script src="js/storage.js"></script>
+    <script src="js/settings.js"></script>
+    <script src="js/history.js"></script>
+    <script src="js/converter.js"></script>
+    <script src="js/image.js"></script>
+    <script src="js/document.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/video.js"></script>
+    <script src="js/pdf.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
