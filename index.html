@@ -71,18 +71,56 @@
     <!-- Main Content -->
     <main class="main-content" id="mainContent">
 
-        <!-- Top Bar -->
-        <header class="topbar">
-            <button class="topbar-toggle" id="topbarToggle" aria-label="Toggle sidebar">
-                <i class="fas fa-bars"></i>
-            </button>
-            <div class="topbar-search">
-                <i class="fas fa-search"></i>
-                <input type="text" id="globalSearch" placeholder="Search tools and features..." aria-label="Search tools and features">
+        <!-- Header -->
+        <header class="app-header" id="appHeader">
+            <div class="header-main">
+                <a href="#" class="header-logo" id="headerLogo" aria-label="Go to Dashboard">
+                    <span class="logo-icon">EC</span>
+                </a>
+
+                <div class="header-title-group">
+                    <h1 class="header-title">EDESON FILE CONVERTER</h1>
+                    <p class="header-slogan">Convert. Compress. Organize. All Offline.</p>
+                </div>
+
+                <div class="header-ad" id="headerAd">
+                    <a href="#" class="ad-link" id="adLink" target="_blank" rel="noopener noreferrer" style="display:none;">
+                        <img src="" alt="Advertisement" id="adImage" class="ad-image" loading="lazy">
+                    </a>
+                    <div class="ad-placeholder" id="adPlaceholder">
+                        <p><i class="fas fa-bullhorn"></i> Advertise Your Business Here</p>
+                        <p class="ad-contact">Contact Endy Edeson</p>
+                        <p class="ad-whatsapp"><i class="fab fa-whatsapp"></i> 08136125128</p>
+                    </div>
+                </div>
+
+                <div class="header-actions">
+                    <button class="header-icon-btn" id="globalSearchBtn" aria-label="Search">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <button class="header-icon-btn" id="themeToggle" aria-label="Toggle dark/light theme">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <button class="header-icon-btn" id="notificationsBtn" aria-label="Notifications">
+                        <i class="fas fa-bell"></i>
+                    </button>
+                    <button class="header-icon-btn" id="settingsBtn" aria-label="Settings">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                    <button class="header-icon-btn header-hamburger" id="topbarToggle" aria-label="Toggle sidebar navigation">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                </div>
             </div>
-            <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark/light theme">
-                <i class="fas fa-moon"></i>
-            </button>
+
+            <!-- Search Bar (hidden by default, toggled by search icon) -->
+            <div class="header-search-bar" id="headerSearchBar">
+                <i class="fas fa-search"></i>
+                <input type="text" id="globalSearch" placeholder="Search tools, formats, features..." aria-label="Search tools and features">
+                <button class="search-close" id="searchCloseBtn" aria-label="Close search">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
         </header>
 
         <!-- ==================== DASHBOARD SECTION ==================== -->

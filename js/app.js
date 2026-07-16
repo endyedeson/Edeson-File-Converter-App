@@ -23,6 +23,8 @@ const App = {
         this.bindSearch();
         this.bindMobileSidebar();
         this.bindDashboardUpload();
+        this.bindHeaderActions();
+        this.bindHeaderScroll();
 
         // Set initial page
         this.navigateTo('dashboard');
@@ -226,7 +228,28 @@ const App = {
      * Bind global search functionality
      */
     bindSearch() {
-        const searchInput = document.querySelector('.topbar-search input') || document.getElementById('globalSearch');
+        const searchInput = document.getElementById('globalSearch');
+        const searchBtn = document.getElementById('globalSearchBtn');
+        const searchBar = document.getElementById('headerSearchBar');
+        const searchClose = document.getElementById('searchCloseBtn');
+
+        // Toggle search bar
+        if (searchBtn && searchBar) {
+            searchBtn.addEventListener('click', () => {
+                searchBar.classList.toggle('active');
+                if (searchBar.classList.contains('active')) {
+                    searchInput.focus();
+                }
+            });
+        }
+
+        if (searchClose && searchBar) {
+            searchClose.addEventListener('click', () => {
+                searchBar.classList.remove('active');
+                if (searchInput) searchInput.value = '';
+            });
+        }
+
         if (searchInput) {
             searchInput.addEventListener('input', (e) => {
                 const query = e.target.value.toLowerCase().trim();
@@ -245,7 +268,15 @@ const App = {
                             historySearch.value = query;
                             HistoryManager.render();
                         }
+                        if (searchBar) searchBar.classList.remove('active');
                     }
+                }
+            });
+
+            // Close search on Escape
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && searchBar) {
+                    searchBar.classList.remove('active');
                 }
             });
         }
