@@ -1,7 +1,7 @@
 /**
  * AudioConverter - Audio format conversion using Web Audio API
- * Supports browser-native format conversions (WAV, OGG)
- * Features: trim, volume adjustment, preview
+ * Supports browser-native format conversions (WAV, OGG, WebM)
+ * Features: trim, volume adjustment, preview, rename, progress
  */
 const AudioConverter = {
     files: [],
@@ -22,7 +22,6 @@ const AudioConverter = {
         if (convertBtn) convertBtn.addEventListener('click', () => this.convert());
         if (clearBtn) clearBtn.addEventListener('click', () => this.clearAll());
 
-        // Volume slider live update
         const volumeSlider = document.getElementById('audioVolume');
         const volumeValue = document.getElementById('audioVolumeValue');
         if (volumeSlider && volumeValue) {
@@ -32,9 +31,6 @@ const AudioConverter = {
         }
     },
 
-    /**
-     * Get or create AudioContext
-     */
     getAudioContext() {
         if (!this.audioContext) {
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -42,10 +38,6 @@ const AudioConverter = {
         return this.audioContext;
     },
 
-    /**
-     * Add audio files
-     * @param {File[]} files
-     */
     addFiles(files) {
         const previewArea = document.getElementById('audioFilePreview');
         if (!previewArea) return;
@@ -65,25 +57,16 @@ const AudioConverter = {
         const id = Converter.generateId();
         this.files.push({ id, file, originalName: file.name });
         previewArea.insertAdjacentHTML('beforeend', Converter.createFileCardHTML(file, id));
-
-        // Generate audio preview
         this._addAudioPreview(file, id);
     },
 
-    /**
-     * Add an audio element for preview
-     */
     _addAudioPreview(file, id) {
         const thumbEl = document.getElementById(`thumb-${id}`);
         if (!thumbEl) return;
-
         const url = URL.createObjectURL(file);
         thumbEl.innerHTML = `<audio src="${url}" controls style="width:48px;height:48px;"></audio>`;
     },
 
-    /**
-     * Convert the loaded audio file
-     */
     async convert() {
         if (this.files.length === 0) {
             if (window.App) App.showToast('Please add an audio file first', 'warning');
@@ -94,30 +77,39 @@ const AudioConverter = {
         const trimStart = document.getElementById('audioTrimStart')?.value || '';
         const trimEnd = document.getElementById('audioTrimEnd')?.value || '';
         const volume = parseInt(document.getElementById('audioVolume')?.value || 100) / 100;
+        const outputName = document.getElementById('audioOutputName')?.value || '';
         const item = this.files[0];
 
-        Converter.showLoading('Converting audio...');
+        Converter.showLoading('Decoding audio...');
 
         try {
-            Converter.updateFileStatus(item.id, 'pending', 'Converting...');
-
-            // Decode audio
+            Converter.updateFileStatus(item.id, 'pending', 'Decoding...');
             const arrayBuffer = await Converter.readAsArrayBuffer(item.file);
             const audioCtx = this.getAudioContext();
             const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
-            // Trim
+            Converter.showLoading('Processing audio...');
+            Converter.updateFileStatus(item.id, 'pending', 'Processing...');
+
             let startSample = 0;
             let endSample = audioBuffer.length;
 
             if (trimStart) {
                 const parts = trimStart.split(':');
-                const seconds = parts.length === 2 ? parseInt(parts[0]) * 60 + parseInt(parts[1]) : parseFloat(trimStart);
+                const seconds = parts.length === 3
+                    ? parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseFloat(parts[2])
+                    : parts.length === 2
+                        ? parseInt(parts[0]) * 60 + parseFloat(parts[1])
+                        : parseFloat(trimStart);
                 startSample = Math.floor(seconds * audioBuffer.sampleRate);
             }
             if (trimEnd) {
                 const parts = trimEnd.split(':');
-                const seconds = parts.length === 2 ? parseInt(parts[0]) * 60 + parseInt(parts[1]) : parseFloat(trimEnd);
+                const seconds = parts.length === 3
+                    ? parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseFloat(parts[2])
+                    : parts.length === 2
+                        ? parseInt(parts[0]) * 60 + parseFloat(parts[1])
+                        : parseFloat(trimEnd);
                 endSample = Math.floor(seconds * audioBuffer.sampleRate);
             }
 
@@ -125,7 +117,6 @@ const AudioConverter = {
             endSample = Math.max(startSample, Math.min(endSample, audioBuffer.length));
             const newLength = endSample - startSample;
 
-            // Create new buffer with trimmed audio
             const newBuffer = audioCtx.createBuffer(
                 audioBuffer.numberOfChannels,
                 newLength,
@@ -140,35 +131,57 @@ const AudioConverter = {
                 }
             }
 
-            // Encode to output format
+            Converter.showLoading('Encoding audio...');
+            Converter.updateFileStatus(item.id, 'pending', 'Encoding...');
+
+            const baseName = outputName || item.originalName.replace(/\.[^.]+$/, '');
+            let outputBlob = null;
+            let actualFormat = outputFormat;
+
             if (outputFormat === 'wav') {
-                const wavBlob = this._encodeWav(newBuffer);
-                Converter.downloadBlob(wavBlob, `${item.originalName.replace(/\.[^.]+$/, '')}.wav`);
+                outputBlob = this._encodeWav(newBuffer);
+                actualFormat = 'wav';
             } else if (outputFormat === 'ogg') {
-                // Try to use MediaRecorder for OGG
                 const oggBlob = await this._encodeOgg(newBuffer, audioCtx);
                 if (oggBlob) {
-                    Converter.downloadBlob(oggBlob, `${item.originalName.replace(/\.[^.]+$/, '')}.ogg`);
+                    outputBlob = oggBlob;
+                    actualFormat = 'ogg';
                 } else {
-                    // Fallback to WAV
-                    if (window.App) App.showToast('OGG encoding not supported, falling back to WAV', 'warning');
-                    const wavBlob = this._encodeWav(newBuffer);
-                    Converter.downloadBlob(wavBlob, `${item.originalName.replace(/\.[^.]+$/, '')}.wav`);
+                    if (window.App) App.showToast('OGG encoding is not supported in your browser. Falling back to WAV format.', 'warning');
+                    outputBlob = this._encodeWav(newBuffer);
+                    actualFormat = 'wav';
                 }
+            } else if (outputFormat === 'mp3') {
+                if (window.App) App.showToast('MP3 encoding is not supported in browser-only environments. The file will be exported as WAV instead.', 'info');
+                outputBlob = this._encodeWav(newBuffer);
+                actualFormat = 'wav';
+            } else if (outputFormat === 'aac') {
+                if (window.App) App.showToast('AAC encoding is not natively supported in browsers. The file will be exported as WAV instead.', 'info');
+                outputBlob = this._encodeWav(newBuffer);
+                actualFormat = 'wav';
+            } else if (outputFormat === 'm4a') {
+                if (window.App) App.showToast('M4A encoding is not natively supported in browsers. The file will be exported as WAV instead.', 'info');
+                outputBlob = this._encodeWav(newBuffer);
+                actualFormat = 'wav';
+            } else {
+                outputBlob = this._encodeWav(newBuffer);
+                actualFormat = 'wav';
             }
 
+            Converter.downloadBlob(outputBlob, `${baseName}.${actualFormat}`);
             Converter.updateFileStatus(item.id, 'success', 'Done');
 
             HistoryManager.addRecord({
                 fileName: item.originalName,
                 originalFormat: Converter.getExtension(item.originalName),
-                convertedFormat: outputFormat,
-                size: 0,
+                convertedFormat: actualFormat,
+                size: outputBlob.size,
                 status: 'success',
                 category: 'audio'
             });
 
-            if (window.App) App.showToast('Audio converted successfully', 'success');
+            this._showResult(outputBlob, actualFormat, baseName);
+            if (window.App) App.showToast('Audio converted successfully!', 'success');
         } catch (err) {
             console.error('Audio conversion error:', err);
             Converter.updateFileStatus(item.id, 'error', 'Failed');
@@ -187,15 +200,32 @@ const AudioConverter = {
         if (window.App && App.updateDashboard) App.updateDashboard();
     },
 
-    /**
-     * Encode AudioBuffer to WAV Blob
-     * @param {AudioBuffer} buffer
-     * @returns {Blob}
-     */
+    _showResult(blob, format, name) {
+        const resultsArea = document.getElementById('audioResults');
+        if (!resultsArea) return;
+
+        const url = URL.createObjectURL(blob);
+        resultsArea.innerHTML = `
+            <h3>Converted Audio</h3>
+            <div class="result-card">
+                <div class="result-info" style="width:100%;">
+                    <p><strong>${name}.${format}</strong></p>
+                    <p style="font-size:0.8rem;color:var(--text-muted);">${format.toUpperCase()} &bull; ${StorageManager.formatSize(blob.size)}</p>
+                    <audio src="${url}" controls class="media-preview" style="margin-top:8px;"></audio>
+                    <div style="margin-top:10px;">
+                        <a href="${url}" download="${name}.${format}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-download"></i> Download
+                        </a>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
     _encodeWav(buffer) {
         const numChannels = buffer.numberOfChannels;
         const sampleRate = buffer.sampleRate;
-        const format = 1; // PCM
+        const format = 1;
         const bitsPerSample = 16;
         const bytesPerSample = bitsPerSample / 8;
         const blockAlign = numChannels * bytesPerSample;
@@ -206,12 +236,11 @@ const AudioConverter = {
         const arrayBuffer = new ArrayBuffer(totalLength);
         const view = new DataView(arrayBuffer);
 
-        // WAV header
         this._writeString(view, 0, 'RIFF');
         view.setUint32(4, totalLength - 8, true);
         this._writeString(view, 8, 'WAVE');
         this._writeString(view, 12, 'fmt ');
-        view.setUint32(16, 16, true); // fmt chunk size
+        view.setUint32(16, 16, true);
         view.setUint16(20, format, true);
         view.setUint16(22, numChannels, true);
         view.setUint32(24, sampleRate, true);
@@ -221,7 +250,6 @@ const AudioConverter = {
         this._writeString(view, 36, 'data');
         view.setUint32(40, dataLength, true);
 
-        // Interleave channels and write samples
         let offset = 44;
         for (let i = 0; i < buffer.length; i++) {
             for (let ch = 0; ch < numChannels; ch++) {
@@ -241,12 +269,6 @@ const AudioConverter = {
         }
     },
 
-    /**
-     * Try to encode AudioBuffer to OGG using MediaRecorder
-     * @param {AudioBuffer} buffer
-     * @param {AudioContext} ctx
-     * @returns {Promise<Blob|null>}
-     */
     async _encodeOgg(buffer, ctx) {
         try {
             const offlineCtx = new OfflineAudioContext(
@@ -261,7 +283,6 @@ const AudioConverter = {
 
             const renderedBuffer = await offlineCtx.startRendering();
 
-            // Try to use MediaRecorder with OGG
             const stream = ctx.createMediaStreamDestination();
             const sourceNode = ctx.createBufferSource();
             sourceNode.buffer = renderedBuffer;
@@ -294,9 +315,6 @@ const AudioConverter = {
         }
     },
 
-    /**
-     * Clear all files
-     */
     clearAll() {
         this.files = [];
         const previewArea = document.getElementById('audioFilePreview');

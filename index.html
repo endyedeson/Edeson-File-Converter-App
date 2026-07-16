@@ -9,6 +9,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/responsive.css">
+    <script>
+        (function() {
+            try {
+                var s = JSON.parse(localStorage.getItem('edeson_settings'));
+                var theme = (s && s.theme) ? s.theme : 'light';
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch(e) {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
 </head>
 <body>
 
@@ -342,7 +353,7 @@
             <div class="card">
                 <div class="info-box">
                     <i class="fas fa-info-circle"></i>
-                    Browser limitations: Only WAV and OGG encoding are supported natively. Some format conversions may not be available.
+                    Browser limitations: WAV and OGG (via WebM/Opus) encoding are natively supported. MP3, AAC, and M4A encoding require server-side tools; if selected, the file will be exported as WAV with a notification.
                 </div>
             </div>
 
@@ -351,8 +362,8 @@
                     <i class="fas fa-cloud-upload-alt upload-icon"></i>
                     <h3>Drag & Drop files here</h3>
                     <p>or click to browse</p>
-                    <p class="upload-hint">Supports MP3, WAV, OGG, AAC, M4A, FLAC</p>
-                    <input type="file" id="audioFileInput" multiple accept=".mp3,.wav,.ogg,.aac,.m4a,.flac" aria-label="Upload audio files for conversion">
+                    <p class="upload-hint">Supports MP3, WAV, OGG, AAC, M4A, FLAC, OPUS, AIFF</p>
+                    <input type="file" id="audioFileInput" multiple accept=".mp3,.wav,.ogg,.aac,.m4a,.flac,.opus,.aiff" aria-label="Upload audio files for conversion">
                 </div>
                 <div class="file-preview-area" id="audioFilePreview"></div>
             </div>
@@ -364,7 +375,10 @@
                         <label for="audioOutputFormat">Output Format</label>
                         <select id="audioOutputFormat" aria-label="Select output audio format">
                             <option value="wav">WAV</option>
-                            <option value="ogg">OGG</option>
+                            <option value="ogg">OGG (WebM)</option>
+                            <option value="mp3">MP3 (falls back to WAV)</option>
+                            <option value="aac">AAC (falls back to WAV)</option>
+                            <option value="m4a">M4A (falls back to WAV)</option>
                         </select>
                     </div>
                     <div class="form-group trim-group">
@@ -383,6 +397,10 @@
                     <div class="form-group">
                         <label for="audioVolume">Volume: <span id="audioVolumeValue">100</span>%</label>
                         <input type="range" id="audioVolume" min="0" max="200" value="100" aria-label="Audio volume">
+                    </div>
+                    <div class="form-group rename-group">
+                        <label for="audioOutputName">Output Filename</label>
+                        <input type="text" id="audioOutputName" placeholder="custom-name (optional)" aria-label="Custom output audio filename">
                     </div>
                 </div>
             </div>
@@ -408,7 +426,7 @@
             <div class="card">
                 <div class="info-box">
                     <i class="fas fa-info-circle"></i>
-                    Browser limitations: Video conversion is limited by browser support. MP4 and WebM are generally well supported.
+                    Browser limitations: Video conversion uses MediaRecorder API. MP4 and WebM are generally well-supported output formats. MOV output falls back to MP4 container where supported, otherwise WebM.
                 </div>
             </div>
 
@@ -417,8 +435,8 @@
                     <i class="fas fa-cloud-upload-alt upload-icon"></i>
                     <h3>Drag & Drop files here</h3>
                     <p>or click to browse</p>
-                    <p class="upload-hint">Supports MP4, WebM, MOV, AVI, MKV</p>
-                    <input type="file" id="videoFileInput" multiple accept=".mp4,.webm,.mov,.avi,.mkv" aria-label="Upload video files for conversion">
+                    <p class="upload-hint">Supports MP4, WebM, MOV, AVI, MKV, M4V, OGV</p>
+                    <input type="file" id="videoFileInput" multiple accept=".mp4,.webm,.mov,.avi,.mkv,.m4v,.ogv" aria-label="Upload video files for conversion">
                 </div>
                 <div class="file-preview-area" id="videoFilePreview"></div>
             </div>
@@ -429,8 +447,9 @@
                     <div class="form-group">
                         <label for="videoOutputFormat">Output Format</label>
                         <select id="videoOutputFormat" aria-label="Select output video format">
-                            <option value="mp4">MP4</option>
                             <option value="webm">WebM</option>
+                            <option value="mp4">MP4</option>
+                            <option value="mov">MOV</option>
                         </select>
                     </div>
                     <div class="form-group trim-group">
@@ -456,6 +475,10 @@
                         <button class="btn btn-secondary" id="videoCaptureThumb" aria-label="Capture thumbnail from video">
                             <i class="fas fa-camera"></i> Capture Thumbnail
                         </button>
+                    </div>
+                    <div class="form-group rename-group">
+                        <label for="videoOutputName">Output Filename</label>
+                        <input type="text" id="videoOutputName" placeholder="custom-name (optional)" aria-label="Custom output video filename">
                     </div>
                 </div>
             </div>
@@ -514,9 +537,12 @@
                     <i class="fas fa-cloud-upload-alt upload-icon"></i>
                     <h3>Drag & Drop files here</h3>
                     <p>or click to browse</p>
-                    <p class="upload-hint">Supports PDF files</p>
+                    <p class="upload-hint" id="pdfUploadHint">Supports PDF files</p>
                     <input type="file" id="pdfFileInput" multiple accept=".pdf" aria-label="Upload PDF files">
                 </div>
+                <div class="file-preview-area" id="pdfFilePreview"></div>
+
+                <div id="pdfPagesArea" style="margin-top:16px;"></div>
 
                 <div class="converter-settings" id="pdfSettings">
                     <div class="settings-grid">
@@ -684,12 +710,12 @@
                 <ul class="features-list">
                     <li><i class="fas fa-check-circle"></i> Image conversion, resizing, and transformation</li>
                     <li><i class="fas fa-check-circle"></i> Document format conversion (TXT, HTML, Markdown, JSON, CSV, XML)</li>
-                    <li><i class="fas fa-check-circle"></i> Audio format conversion with trimming and volume control</li>
-                    <li><i class="fas fa-check-circle"></i> Video format conversion with trimming and thumbnail capture</li>
-                    <li><i class="fas fa-check-circle"></i> PDF tools: merge, split, rotate, and preview</li>
+                    <li><i class="fas fa-check-circle"></i> Audio format conversion (MP3, WAV, OGG, AAC, M4A, FLAC, OPUS, AIFF)</li>
+                    <li><i class="fas fa-check-circle"></i> Video format conversion (MP4, WebM, MOV, AVI, MKV, M4V, OGV)</li>
+                    <li><i class="fas fa-check-circle"></i> PDF tools: create from images, merge, split, rotate, preview, reorder, remove pages</li>
                     <li><i class="fas fa-check-circle"></i> 100% client-side processing - no server required</li>
                     <li><i class="fas fa-check-circle"></i> Dark and Light theme support</li>
-                    <li><i class="fas fa-check-circle"></i> Responsive design for mobile and desktop</li>
+                    <li><i class="fas fa-check-circle"></i> Responsive design for mobile, tablet, and desktop</li>
                     <li><i class="fas fa-check-circle"></i> Conversion history tracking</li>
                     <li><i class="fas fa-check-circle"></i> Drag and drop file upload support</li>
                 </ul>

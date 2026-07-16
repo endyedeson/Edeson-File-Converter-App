@@ -1,14 +1,11 @@
 /**
  * VideoConverter - Video format conversion using MediaRecorder API
- * Supports browser-compatible conversions (MP4, WebM)
- * Features: trim, mute, thumbnail capture, preview
+ * Supports browser-compatible conversions (MP4, WebM, MOV)
+ * Features: trim, mute, thumbnail capture, preview, rename
  */
 const VideoConverter = {
     files: [],
 
-    /**
-     * Initialize video converter
-     */
     init() {
         const uploadZone = document.getElementById('videoUploadZone');
         const fileInput = document.getElementById('videoFileInput');
@@ -24,10 +21,6 @@ const VideoConverter = {
         if (thumbBtn) thumbBtn.addEventListener('click', () => this.captureThumbnail());
     },
 
-    /**
-     * Add video files
-     * @param {File[]} files
-     */
     addFiles(files) {
         const previewArea = document.getElementById('videoFilePreview');
         if (!previewArea) return;
@@ -47,26 +40,16 @@ const VideoConverter = {
         const id = Converter.generateId();
         this.files.push({ id, file, originalName: file.name });
         previewArea.insertAdjacentHTML('beforeend', Converter.createFileCardHTML(file, id));
-
-        // Add video preview
         this._addVideoPreview(file, id);
     },
 
-    /**
-     * Add a video preview element
-     */
     _addVideoPreview(file, id) {
         const thumbEl = document.getElementById(`thumb-${id}`);
         if (!thumbEl) return;
-
         const url = URL.createObjectURL(file);
         thumbEl.innerHTML = `<video src="${url}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;"></video>`;
     },
 
-    /**
-     * Convert the loaded video file
-     * Note: Full format conversion is limited by browser APIs
-     */
     async convert() {
         if (this.files.length === 0) {
             if (window.App) App.showToast('Please add a video file first', 'warning');
@@ -77,12 +60,13 @@ const VideoConverter = {
         const trimStart = document.getElementById('videoTrimStart')?.value || '';
         const trimEnd = document.getElementById('videoTrimEnd')?.value || '';
         const mute = document.getElementById('videoMute')?.checked || false;
+        const outputName = document.getElementById('videoOutputName')?.value || '';
         const item = this.files[0];
 
-        Converter.showLoading('Processing video...');
+        Converter.showLoading('Loading video...');
 
         try {
-            Converter.updateFileStatus(item.id, 'pending', 'Processing...');
+            Converter.updateFileStatus(item.id, 'pending', 'Loading...');
 
             const video = document.createElement('video');
             video.muted = true;
@@ -98,17 +82,15 @@ const VideoConverter = {
             let startTime = 0;
             let endTime = duration;
 
-            if (trimStart) {
-                startTime = this._parseTime(trimStart);
-            }
-            if (trimEnd) {
-                endTime = this._parseTime(trimEnd);
-            }
+            if (trimStart) startTime = this._parseTime(trimStart);
+            if (trimEnd) endTime = this._parseTime(trimEnd);
 
             startTime = Math.max(0, Math.min(startTime, duration));
             endTime = Math.max(startTime, Math.min(endTime, duration));
 
-            // Capture frames and record
+            Converter.showLoading('Processing video...');
+            Converter.updateFileStatus(item.id, 'pending', 'Processing...');
+
             const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth || 640;
             canvas.height = video.videoHeight || 360;
@@ -116,7 +98,6 @@ const VideoConverter = {
 
             const stream = canvas.captureStream(30);
 
-            // Add audio track if not muted
             if (!mute) {
                 try {
                     const audioCtx = new AudioContext();
@@ -130,14 +111,26 @@ const VideoConverter = {
                 }
             }
 
-            // Determine MIME type
             let mimeType = 'video/webm;codecs=vp8';
+            let ext = 'webm';
+
             if (outputFormat === 'mp4') {
                 if (MediaRecorder.isTypeSupported('video/mp4')) {
                     mimeType = 'video/mp4';
+                    ext = 'mp4';
                 } else {
-                    if (window.App) App.showToast('MP4 recording not supported by your browser. Output will be WebM.', 'warning');
+                    if (window.App) App.showToast('MP4 recording is not supported by your browser. The output will be WebM format.', 'warning');
                     mimeType = 'video/webm;codecs=vp8';
+                    ext = 'webm';
+                }
+            } else if (outputFormat === 'mov') {
+                if (MediaRecorder.isTypeSupported('video/mp4')) {
+                    mimeType = 'video/mp4';
+                    ext = 'mov';
+                } else {
+                    if (window.App) App.showToast('MOV recording is not supported by your browser. The output will be WebM format.', 'warning');
+                    mimeType = 'video/webm;codecs=vp8';
+                    ext = 'webm';
                 }
             } else {
                 if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
@@ -145,6 +138,7 @@ const VideoConverter = {
                 } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
                     mimeType = 'video/webm;codecs=vp8';
                 }
+                ext = 'webm';
             }
 
             const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 2500000 });
@@ -156,7 +150,6 @@ const VideoConverter = {
 
             const recordedBlob = await new Promise((resolve, reject) => {
                 recorder.onstop = () => {
-                    const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
                     resolve(new Blob(chunks, { type: mimeType }));
                 };
                 recorder.onerror = reject;
@@ -172,7 +165,6 @@ const VideoConverter = {
                         recorder.stop();
                         return;
                     }
-
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                     requestAnimationFrame(drawFrame);
                 };
@@ -184,8 +176,8 @@ const VideoConverter = {
 
             URL.revokeObjectURL(video.src);
 
-            const ext = outputFormat === 'mp4' ? 'mp4' : 'webm';
-            const filename = `${item.originalName.replace(/\.[^.]+$/, '')}.${ext}`;
+            const baseName = outputName || item.originalName.replace(/\.[^.]+$/, '');
+            const filename = `${baseName}.${ext}`;
 
             Converter.downloadBlob(recordedBlob, filename);
             Converter.updateFileStatus(item.id, 'success', 'Done');
@@ -199,10 +191,8 @@ const VideoConverter = {
                 category: 'video'
             });
 
-            // Show in results area
-            this._showResult(recordedBlob, ext);
-
-            if (window.App) App.showToast('Video processed successfully', 'success');
+            this._showResult(recordedBlob, ext, baseName);
+            if (window.App) App.showToast('Video processed successfully!', 'success');
         } catch (err) {
             console.error('Video conversion error:', err);
             Converter.updateFileStatus(item.id, 'error', 'Failed');
@@ -221,9 +211,6 @@ const VideoConverter = {
         if (window.App && App.updateDashboard) App.updateDashboard();
     },
 
-    /**
-     * Capture thumbnail from the first video frame
-     */
     async captureThumbnail() {
         if (this.files.length === 0) {
             if (window.App) App.showToast('Please add a video first', 'warning');
@@ -262,7 +249,6 @@ const VideoConverter = {
                 Converter.downloadBlob(blob, name);
                 if (window.App) App.showToast('Thumbnail captured!', 'success');
 
-                // Show in results
                 const resultsArea = document.getElementById('videoResults');
                 if (resultsArea) {
                     const url = URL.createObjectURL(blob);
@@ -284,10 +270,7 @@ const VideoConverter = {
         }
     },
 
-    /**
-     * Show conversion result
-     */
-    _showResult(blob, ext) {
+    _showResult(blob, ext, name) {
         const resultsArea = document.getElementById('videoResults');
         if (!resultsArea) return;
 
@@ -297,16 +280,18 @@ const VideoConverter = {
             <div class="result-card">
                 <video src="${url}" controls class="media-preview" style="max-width:400px;border-radius:8px;"></video>
                 <div class="result-info">
-                    <p><strong>Output:</strong> .${ext}</p>
-                    <p style="font-size:0.8rem;color:var(--text-muted);">Size: ${StorageManager.formatSize(blob.size)}</p>
+                    <p><strong>${name}.${ext}</strong></p>
+                    <p style="font-size:0.8rem;color:var(--text-muted);">${ext.toUpperCase()} &bull; ${StorageManager.formatSize(blob.size)}</p>
+                    <div style="margin-top:10px;">
+                        <a href="${url}" download="${name}.${ext}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-download"></i> Download
+                        </a>
+                    </div>
                 </div>
             </div>
         `;
     },
 
-    /**
-     * Parse time string (HH:MM:SS or MM:SS or SS) to seconds
-     */
     _parseTime(timeStr) {
         const parts = timeStr.split(':').map(Number);
         if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
@@ -314,9 +299,6 @@ const VideoConverter = {
         return parts[0] || 0;
     },
 
-    /**
-     * Clear all files
-     */
     clearAll() {
         this.files = [];
         const previewArea = document.getElementById('videoFilePreview');

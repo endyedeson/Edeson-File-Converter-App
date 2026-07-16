@@ -14,12 +14,12 @@ const Converter = {
             mimeTypes: ['text/plain', 'text/html', 'text/markdown', 'application/json', 'text/csv', 'application/xml', 'text/xml']
         },
         audio: {
-            extensions: ['.mp3', '.wav', '.ogg', '.aac', '.m4a', '.flac'],
-            mimeTypes: ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/aac', 'audio/mp4', 'audio/flac']
+            extensions: ['.mp3', '.wav', '.ogg', '.aac', '.m4a', '.flac', '.opus', '.aiff'],
+            mimeTypes: ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/aac', 'audio/mp4', 'audio/flac', 'audio/opus', 'audio/aiff']
         },
         video: {
-            extensions: ['.mp4', '.webm', '.mov', '.avi', '.mkv'],
-            mimeTypes: ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska']
+            extensions: ['.mp4', '.webm', '.mov', '.avi', '.mkv', '.m4v', '.ogv'],
+            mimeTypes: ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/x-m4v', 'video/ogg']
         },
         pdf: {
             extensions: ['.pdf'],
@@ -78,8 +78,10 @@ const Converter = {
             'svg': 'image/svg+xml', 'ico': 'image/x-icon', 'tiff': 'image/tiff',
             'mp3': 'audio/mpeg', 'wav': 'audio/wav', 'ogg': 'audio/ogg',
             'aac': 'audio/aac', 'm4a': 'audio/mp4', 'flac': 'audio/flac',
+            'opus': 'audio/opus', 'aiff': 'audio/aiff',
             'mp4': 'video/mp4', 'webm': 'video/webm', 'mov': 'video/quicktime',
             'avi': 'video/x-msvideo', 'mkv': 'video/x-matroska',
+            'm4v': 'video/x-m4v', 'ogv': 'video/ogg',
             'txt': 'text/plain', 'html': 'text/html', 'htm': 'text/html',
             'md': 'text/markdown', 'json': 'application/json',
             'csv': 'text/csv', 'xml': 'application/xml',

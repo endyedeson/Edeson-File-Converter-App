@@ -6,7 +6,7 @@ const SettingsManager = {
     STORAGE_KEY: 'edeson_settings',
 
     defaults: {
-        theme: 'dark',
+        theme: 'light',
         language: 'en',
         defaultQuality: 90,
         autoRename: true,

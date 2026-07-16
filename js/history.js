@@ -121,8 +121,8 @@ const HistoryManager = {
         const ext = extension.toLowerCase().replace('.', '');
         const imageExts = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg', 'ico', 'tiff', 'heic'];
         const docExts = ['txt', 'html', 'htm', 'md', 'json', 'csv', 'xml'];
-        const audioExts = ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac'];
-        const videoExts = ['mp4', 'webm', 'mov', 'avi', 'mkv'];
+        const audioExts = ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac', 'opus', 'aiff'];
+        const videoExts = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'm4v', 'ogv'];
         const pdfExts = ['pdf'];
 
         if (imageExts.includes(ext)) return 'image';

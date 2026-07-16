@@ -9,6 +9,10 @@ const App = {
      * Initialize the entire application
      */
     init() {
+        // Apply theme immediately to prevent flash
+        const savedTheme = StorageManager.get('edeson_settings', {}).theme || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+
         // Initialize all modules
         SettingsManager.init();
         HistoryManager.init();
@@ -290,9 +294,9 @@ const App = {
         const converters = [
             { name: 'Image Converter', page: 'image-converter', keywords: ['image', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'photo'] },
             { name: 'Document Converter', page: 'document-converter', keywords: ['document', 'text', 'html', 'json', 'csv', 'xml', 'markdown'] },
-            { name: 'Audio Converter', page: 'audio-converter', keywords: ['audio', 'music', 'mp3', 'wav', 'ogg', 'sound'] },
-            { name: 'Video Converter', page: 'video-converter', keywords: ['video', 'mp4', 'webm', 'movie'] },
-            { name: 'PDF Tools', page: 'pdf-tools', keywords: ['pdf', 'merge', 'split', 'rotate'] }
+            { name: 'Audio Converter', page: 'audio-converter', keywords: ['audio', 'music', 'mp3', 'wav', 'ogg', 'sound', 'aac', 'm4a', 'flac', 'opus', 'aiff'] },
+            { name: 'Video Converter', page: 'video-converter', keywords: ['video', 'mp4', 'webm', 'movie', 'mov', 'avi', 'mkv', 'm4v', 'ogv'] },
+            { name: 'PDF Tools', page: 'pdf-tools', keywords: ['pdf', 'merge', 'split', 'rotate', 'preview'] }
         ];
 
         const match = converters.find(c =>

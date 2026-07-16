@@ -1,59 +1,58 @@
 /**
  * PDFTools - PDF creation, manipulation, and processing
  * Uses jsPDF for creation and pdf-lib for manipulation
+ * All operations run entirely in the browser
  */
 const PDFTools = {
     currentTool: null,
     files: [],
+    _pdfPages: [],
 
-    /**
-     * Initialize PDF tools - bind tool card clicks
-     */
     init() {
-        // Bind tool card clicks
         document.querySelectorAll('.pdf-tool-card').forEach(card => {
             card.addEventListener('click', () => {
                 const tool = card.dataset.tool;
                 this.selectTool(tool);
             });
+            card.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this.selectTool(card.dataset.tool);
+                }
+            });
         });
 
-        // Bind upload zone
         const uploadZone = document.getElementById('pdfUploadZone');
         const fileInput = document.getElementById('pdfFileInput');
 
         Converter.setupDragDrop(uploadZone, (files) => this.addFiles(files));
         Converter.setupFileInput(fileInput, (files) => this.addFiles(files));
 
-        // Bind process button
         const processBtn = document.getElementById('pdfProcessBtn');
         if (processBtn) processBtn.addEventListener('click', () => this.process());
 
-        // Bind back button
         const backBtn = document.getElementById('pdfBackBtn');
         if (backBtn) backBtn.addEventListener('click', () => this.backToTools());
     },
 
-    /**
-     * Select a PDF tool
-     * @param {string} tool - Tool identifier
-     */
     selectTool(tool) {
         this.currentTool = tool;
         this.files = [];
+        this._pdfPages = [];
 
         const toolArea = document.getElementById('pdfToolArea');
         const toolTitle = document.getElementById('pdfToolTitle');
-        const settings = document.getElementById('pdfSettings');
         const splitSettings = document.getElementById('pdfSplitSettings');
         const rotationSettings = document.getElementById('pdfRotationSettings');
         const fileInput = document.getElementById('pdfFileInput');
+        const pdfPreview = document.getElementById('pdfPreviewFrame');
+        const pdfPagesArea = document.getElementById('pdfPagesArea');
 
-        // Hide tool cards, show tool area
         document.querySelector('.tool-cards-grid').style.display = 'none';
         if (toolArea) toolArea.classList.remove('hidden');
+        if (pdfPreview) { pdfPreview.classList.add('hidden'); pdfPreview.src = ''; }
+        if (pdfPagesArea) pdfPagesArea.innerHTML = '';
 
-        // Set title and configure settings
         const titles = {
             'images-to-pdf': 'Convert Images to PDF',
             'merge-pdfs': 'Merge PDF Files',
@@ -61,10 +60,8 @@ const PDFTools = {
             'rotate-pdf': 'Rotate PDF Pages',
             'preview-pdf': 'Preview PDF'
         };
-
         if (toolTitle) toolTitle.textContent = titles[tool] || 'PDF Tool';
 
-        // Configure file input accept
         if (fileInput) {
             if (tool === 'images-to-pdf') {
                 fileInput.accept = 'image/png,image/jpeg,image/webp,image/gif';
@@ -75,41 +72,43 @@ const PDFTools = {
             }
         }
 
-        // Show/hide relevant settings
         if (splitSettings) splitSettings.style.display = tool === 'split-pdf' ? 'flex' : 'none';
         if (rotationSettings) rotationSettings.style.display = tool === 'rotate-pdf' ? 'flex' : 'none';
+
+        const previewHint = document.getElementById('pdfUploadHint');
+        if (previewHint) {
+            if (tool === 'images-to-pdf') {
+                previewHint.textContent = 'Supports PNG, JPG, WEBP, GIF images';
+            } else {
+                previewHint.textContent = 'Supports PDF files' + (tool === 'merge-pdfs' ? ' (select multiple)' : '');
+            }
+        }
     },
 
-    /**
-     * Go back to tool cards grid
-     */
     backToTools() {
         this.currentTool = null;
         this.files = [];
+        this._pdfPages = [];
 
         const toolArea = document.getElementById('pdfToolArea');
         const grid = document.querySelector('.tool-cards-grid');
-        const previewArea = document.getElementById('pdfUploadZone');
+        const previewFiles = document.getElementById('pdfFilePreview');
+        const results = document.getElementById('pdfResults');
+        const pdfPreview = document.getElementById('pdfPreviewFrame');
+        const pdfPagesArea = document.getElementById('pdfPagesArea');
 
         if (toolArea) toolArea.classList.add('hidden');
         if (grid) grid.style.display = '';
-
-        // Clear file preview
-        const previewFiles = document.getElementById('pdfFilePreview');
         if (previewFiles) previewFiles.innerHTML = '';
-        const results = document.getElementById('pdfResults');
         if (results) results.innerHTML = '';
+        if (pdfPreview) { pdfPreview.classList.add('hidden'); pdfPreview.src = ''; }
+        if (pdfPagesArea) pdfPagesArea.innerHTML = '';
     },
 
-    /**
-     * Add files
-     * @param {File[]} files
-     */
     addFiles(files) {
         const previewArea = document.getElementById('pdfFilePreview');
         if (!previewArea) return;
 
-        // For merge, allow multiple; otherwise single
         if (this.currentTool !== 'merge-pdfs' && this.currentTool !== 'images-to-pdf') {
             this.files = [];
             previewArea.innerHTML = '';
@@ -122,7 +121,7 @@ const PDFTools = {
                 : ['pdf'];
 
             if (!validExts.includes(ext)) {
-                if (window.App) App.showToast(`Unsupported file type: .${ext}`, 'error');
+                if (window.App) App.showToast(`Unsupported file type: .${ext}. ${this.currentTool === 'images-to-pdf' ? 'Please use PNG, JPG, WEBP, or GIF images.' : 'Please use PDF files.'}`, 'error');
                 return;
             }
 
@@ -130,16 +129,117 @@ const PDFTools = {
             this.files.push({ id, file, originalName: file.name });
             previewArea.insertAdjacentHTML('beforeend', Converter.createFileCardHTML(file, id));
 
-            // Thumbnail for images
             if (ext !== 'pdf' && file.type.startsWith('image/')) {
                 Converter.generateImageThumbnail(file, `thumb-${id}`);
             }
         });
+
+        if (this.currentTool === 'preview-pdf' && this.files.length > 0) {
+            this.previewPdfInline();
+        }
+
+        if ((this.currentTool === 'split-pdf' || this.currentTool === 'rotate-pdf') && this.files.length > 0) {
+            this._loadPdfPages();
+        }
     },
 
-    /**
-     * Process the current tool with loaded files
-     */
+    async _loadPdfPages() {
+        const pdfPagesArea = document.getElementById('pdfPagesArea');
+        if (!pdfPagesArea || this.files.length === 0) return;
+
+        try {
+            const { PDFDocument } = PDFLib;
+            const pdfBytes = await Converter.readAsArrayBuffer(this.files[0].file);
+            const pdf = await PDFDocument.load(pdfBytes);
+            const pageCount = pdf.getPageCount();
+
+            this._pdfPages = [];
+            for (let i = 0; i < pageCount; i++) {
+                this._pdfPages.push({ index: i, removed: false });
+            }
+
+            this._renderPdfPages(pdfPagesArea, pageCount);
+        } catch (err) {
+            pdfPagesArea.innerHTML = `<p style="color:var(--error);font-size:0.85rem;">Failed to read PDF: ${err.message}</p>`;
+        }
+    },
+
+    _renderPdfPages(container, pageCount) {
+        let html = `<h3 style="margin-bottom:10px;font-size:0.95rem;">Pages (${pageCount} total)</h3>`;
+        html += `<p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;">Click "Remove" to exclude pages, or drag to reorder.</p>`;
+        html += `<div class="pdf-page-list" id="pdfPageList">`;
+
+        this._pdfPages.forEach((page, i) => {
+            html += `
+                <div class="pdf-page-item ${page.removed ? 'removed' : ''}" data-index="${i}" draggable="true">
+                    <span class="page-handle"><i class="fas fa-grip-vertical"></i></span>
+                    <span class="page-number">Page ${i + 1}</span>
+                    <span class="page-info">Page ${i + 1} of ${pageCount}</span>
+                    <button class="page-remove" onclick="PDFTools.togglePageRemove(${i})" title="${page.removed ? 'Restore' : 'Remove'}">
+                        <i class="fas ${page.removed ? 'fa-undo' : 'fa-times'}"></i> ${page.removed ? 'Restore' : 'Remove'}
+                    </button>
+                </div>
+            `;
+        });
+
+        html += `</div>`;
+        container.innerHTML = html;
+
+        this._setupDragReorder();
+    },
+
+    togglePageRemove(index) {
+        if (this._pdfPages[index]) {
+            this._pdfPages[index].removed = !this._pdfPages[index].removed;
+            const container = document.getElementById('pdfPagesArea');
+            if (container) this._renderPdfPages(container, this._pdfPages.length);
+        }
+    },
+
+    _setupDragReorder() {
+        const list = document.getElementById('pdfPageList');
+        if (!list) return;
+
+        let dragItem = null;
+
+        list.querySelectorAll('.pdf-page-item').forEach(item => {
+            item.addEventListener('dragstart', (e) => {
+                dragItem = item;
+                item.style.opacity = '0.5';
+                e.dataTransfer.effectAllowed = 'move';
+            });
+
+            item.addEventListener('dragend', () => {
+                if (dragItem) dragItem.style.opacity = '1';
+                dragItem = null;
+                list.querySelectorAll('.pdf-page-item').forEach(el => el.classList.remove('dragover'));
+            });
+
+            item.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                item.classList.add('dragover');
+            });
+
+            item.addEventListener('dragleave', () => {
+                item.classList.remove('dragover');
+            });
+
+            item.addEventListener('drop', (e) => {
+                e.preventDefault();
+                item.classList.remove('dragover');
+                if (dragItem && dragItem !== item) {
+                    const fromIndex = parseInt(dragItem.dataset.index);
+                    const toIndex = parseInt(item.dataset.index);
+                    const movedPage = this._pdfPages.splice(fromIndex, 1)[0];
+                    this._pdfPages.splice(toIndex, 0, movedPage);
+                    const container = document.getElementById('pdfPagesArea');
+                    if (container) this._renderPdfPages(container, this._pdfPages.length);
+                }
+            });
+        });
+    },
+
     async process() {
         if (this.files.length === 0) {
             if (window.App) App.showToast('Please add files first', 'warning');
@@ -175,9 +275,6 @@ const PDFTools = {
         if (window.App && App.updateDashboard) App.updateDashboard();
     },
 
-    /**
-     * Convert images to PDF using jsPDF
-     */
     async imagesToPdf() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -186,8 +283,9 @@ const PDFTools = {
             const item = this.files[i];
             const dataUrl = await Converter.readAsDataURL(item.file);
             const img = new Image();
-            await new Promise((resolve) => {
+            await new Promise((resolve, reject) => {
                 img.onload = resolve;
+                img.onerror = () => reject(new Error('Failed to load image: ' + item.originalName));
                 img.src = dataUrl;
             });
 
@@ -226,12 +324,10 @@ const PDFTools = {
             category: 'pdf'
         });
 
-        if (window.App) App.showToast('PDF created successfully!', 'success');
+        this._showResult(filename);
+        if (window.App) App.showToast('PDF created successfully from ' + this.files.length + ' image(s)!', 'success');
     },
 
-    /**
-     * Merge multiple PDFs using pdf-lib
-     */
     async mergePdfs() {
         if (this.files.length < 2) {
             if (window.App) App.showToast('Please add at least 2 PDF files to merge', 'warning');
@@ -261,12 +357,10 @@ const PDFTools = {
             category: 'pdf'
         });
 
-        if (window.App) App.showToast('PDFs merged successfully!', 'success');
+        this._showResult('merged.pdf', blob.size);
+        if (window.App) App.showToast(this.files.length + ' PDF files merged successfully!', 'success');
     },
 
-    /**
-     * Split a PDF into pages or extract range
-     */
     async splitPdf() {
         const { PDFDocument } = PDFLib;
         const file = this.files[0].file;
@@ -290,7 +384,8 @@ const PDFTools = {
         const newPdfBytes = await newPdf.save();
         const blob = new Blob([newPdfBytes], { type: 'application/pdf' });
         const baseName = file.name.replace(/\.[^.]+$/, '');
-        Converter.downloadBlob(blob, `${baseName}_pages_${start}-${end}.pdf`);
+        const filename = `${baseName}_pages_${start}-${end}.pdf`;
+        Converter.downloadBlob(blob, filename);
 
         HistoryManager.addRecord({
             fileName: file.name,
@@ -301,12 +396,10 @@ const PDFTools = {
             category: 'pdf'
         });
 
-        if (window.App) App.showToast(`Extracted pages ${start}-${end}`, 'success');
+        this._showResult(filename, blob.size);
+        if (window.App) App.showToast(`Extracted pages ${start}-${end} successfully!`, 'success');
     },
 
-    /**
-     * Rotate all pages in a PDF
-     */
     async rotatePdf() {
         const { PDFDocument } = PDFLib;
         const file = this.files[0].file;
@@ -322,7 +415,8 @@ const PDFTools = {
         const modifiedBytes = await pdf.save();
         const blob = new Blob([modifiedBytes], { type: 'application/pdf' });
         const baseName = file.name.replace(/\.[^.]+$/, '');
-        Converter.downloadBlob(blob, `${baseName}_rotated.pdf`);
+        const filename = `${baseName}_rotated_${degrees}deg.pdf`;
+        Converter.downloadBlob(blob, filename);
 
         HistoryManager.addRecord({
             fileName: file.name,
@@ -333,12 +427,10 @@ const PDFTools = {
             category: 'pdf'
         });
 
-        if (window.App) App.showToast('PDF rotated successfully!', 'success');
+        this._showResult(filename, blob.size);
+        if (window.App) App.showToast(`PDF rotated by ${degrees} degrees successfully!`, 'success');
     },
 
-    /**
-     * Preview a PDF file in an iframe
-     */
     async previewPdf() {
         const file = this.files[0].file;
         const url = URL.createObjectURL(file);
@@ -348,11 +440,45 @@ const PDFTools = {
             frame.src = url;
             frame.classList.remove('hidden');
             frame.style.width = '100%';
-            frame.style.height = '500px';
+            frame.style.height = '600px';
             frame.style.borderRadius = '12px';
             frame.style.marginTop = '16px';
+            frame.style.border = '1px solid var(--border)';
         }
 
         if (window.App) App.showToast('PDF loaded for preview', 'info');
+    },
+
+    previewPdfInline() {
+        if (this.files.length === 0) return;
+        const file = this.files[0].file;
+        const url = URL.createObjectURL(file);
+
+        const frame = document.getElementById('pdfPreviewFrame');
+        if (frame) {
+            frame.src = url;
+            frame.classList.remove('hidden');
+            frame.style.width = '100%';
+            frame.style.height = '600px';
+            frame.style.borderRadius = '12px';
+            frame.style.marginTop = '16px';
+            frame.style.border = '1px solid var(--border)';
+        }
+    },
+
+    _showResult(name, size) {
+        const resultsArea = document.getElementById('pdfResults');
+        if (!resultsArea) return;
+
+        resultsArea.innerHTML = `
+            <h3>Processing Complete</h3>
+            <div class="result-card">
+                <div class="result-info" style="width:100%;">
+                    <p><i class="fas fa-file-pdf" style="color:var(--error);font-size:1.5rem;margin-right:8px;"></i> <strong>${name}</strong></p>
+                    ${size ? `<p style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">Size: ${StorageManager.formatSize(size)}</p>` : ''}
+                    <p style="font-size:0.8rem;color:var(--success);margin-top:8px;"><i class="fas fa-check-circle"></i> Download started automatically</p>
+                </div>
+            </div>
+        `;
     }
 };
