@@ -305,6 +305,54 @@ const App = {
         }
     },
 
+    // ==================== HEADER ACTIONS ====================
+
+    /**
+     * Bind header action buttons (logo, settings, notifications)
+     */
+    bindHeaderActions() {
+        // Logo click -> Dashboard
+        const logo = document.getElementById('headerLogo');
+        if (logo) {
+            logo.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.navigateTo('dashboard');
+            });
+        }
+
+        // Settings button
+        const settingsBtn = document.getElementById('settingsBtn');
+        if (settingsBtn) {
+            settingsBtn.addEventListener('click', () => {
+                this.navigateTo('settings');
+            });
+        }
+
+        // Notifications button
+        const notifBtn = document.getElementById('notificationsBtn');
+        if (notifBtn) {
+            notifBtn.addEventListener('click', () => {
+                this.showToast('No new notifications', 'info');
+            });
+        }
+    },
+
+    /**
+     * Add scroll-based shadow effect to header
+     */
+    bindHeaderScroll() {
+        const header = document.getElementById('appHeader');
+        if (!header) return;
+
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 10) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+        }, { passive: true });
+    },
+
     // ==================== TOAST NOTIFICATIONS ====================
 
     /**
