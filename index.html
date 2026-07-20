@@ -528,9 +528,14 @@
                     <h3>Preview PDF</h3>
                     <p>View the contents of a PDF file</p>
                 </div>
+                <div class="pdf-tool-card" data-tool="edit-pdf" role="button" tabindex="0" aria-label="Edit PDF tool">
+                    <i class="fas fa-edit"></i>
+                    <h3>Edit PDF</h3>
+                    <p>Add text, shapes, images, and annotations</p>
+                </div>
             </div>
 
-            <div class="pdf-tool-area card" id="pdfToolArea" hidden>
+            <div class="pdf-tool-area card hidden" id="pdfToolArea">
                 <h2 id="pdfToolTitle"></h2>
 
                 <div class="upload-zone" id="pdfUploadZone">
@@ -547,7 +552,9 @@
                 <div class="converter-settings" id="pdfSettings">
                     <div class="settings-grid">
                         <div class="form-group pdf-split-options" id="pdfSplitSettings" hidden>
-                            <label>Page Range</label>
+                            <label>Page Range (e.g. 1-5, 8, 10-12)</label>
+                            <input type="text" id="pdfSplitRange" placeholder="1-5, 8, 10-12" style="margin-bottom:8px;" aria-label="Page range for splitting">
+                            <label>Or select start/end pages</label>
                             <div class="split-inputs">
                                 <input type="number" id="pdfSplitStart" placeholder="Start page" min="1" aria-label="Split start page">
                                 <span class="resize-separator">to</span>
@@ -577,7 +584,98 @@
                 <div class="results-area" id="pdfResults"></div>
             </div>
 
-            <iframe id="pdfPreviewFrame" hidden title="PDF Preview"></iframe>
+            <iframe id="pdfPreviewFrame" class="hidden" title="PDF Preview"></iframe>
+        </section>
+
+        <!-- ==================== PDF EDITOR SECTION ==================== -->
+        <section class="section" id="section-pdf-editor">
+            <h1 class="section-heading">PDF Editor</h1>
+            <p class="section-subheading">Edit, annotate, and modify PDF documents right in your browser</p>
+
+            <div id="editorUploadArea">
+                <div class="card">
+                    <div class="upload-zone" id="editorUploadZone">
+                        <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                        <h3>Drag & Drop a PDF here</h3>
+                        <p>or click to browse</p>
+                        <p class="upload-hint">Supports PDF files</p>
+                        <input type="file" id="editorFileInput" accept=".pdf" aria-label="Upload PDF for editing">
+                    </div>
+                </div>
+            </div>
+
+            <div id="editorWorkspace" style="display:none;">
+                <div class="editor-toolbar" id="editorToolbar">
+                    <div class="editor-tool-group">
+                        <button class="editor-tool-btn active" data-editor-tool="select" title="Select & Move"><i class="fas fa-mouse-pointer"></i></button>
+                        <button class="editor-tool-btn" data-editor-tool="text" title="Add Text"><i class="fas fa-font"></i></button>
+                        <button class="editor-tool-btn" data-editor-tool="shape" title="Shapes"><i class="fas fa-shapes"></i></button>
+                        <button class="editor-tool-btn" data-editor-tool="draw" title="Freehand Draw"><i class="fas fa-pen"></i></button>
+                        <button class="editor-tool-btn" data-editor-tool="eraser" title="Eraser"><i class="fas fa-eraser"></i></button>
+                        <button class="editor-tool-btn" data-editor-tool="image" title="Insert Image"><i class="fas fa-image"></i></button>
+                        <button class="editor-tool-btn" data-editor-tool="signature" title="Signature"><i class="fas fa-signature"></i></button>
+                        <button class="editor-tool-btn" data-editor-tool="watermark" title="Watermark"><i class="fas fa-tint"></i></button>
+                    </div>
+                    <div class="editor-separator"></div>
+                    <div class="editor-tool-group">
+                        <button class="editor-tool-btn" id="editorUndo" title="Undo (Ctrl+Z)"><i class="fas fa-undo"></i></button>
+                        <button class="editor-tool-btn" id="editorRedo" title="Redo (Ctrl+Y)"><i class="fas fa-redo"></i></button>
+                    </div>
+                    <div class="editor-separator"></div>
+                    <div class="editor-tool-group">
+                        <button class="editor-tool-btn" id="editorZoomIn" title="Zoom In"><i class="fas fa-search-plus"></i></button>
+                        <button class="editor-tool-btn" id="editorZoomOut" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
+                        <button class="editor-tool-btn" id="editorZoomFit" title="Fit to Width"><i class="fas fa-arrows-alt-h"></i></button>
+                        <button class="editor-tool-btn" id="editorFullscreen" title="Fullscreen"><i class="fas fa-expand"></i></button>
+                    </div>
+                    <div class="editor-separator"></div>
+                    <div class="editor-tool-group editor-page-nav">
+                        <button class="editor-tool-btn" id="editorPrevPage" title="Previous Page"><i class="fas fa-chevron-left"></i></button>
+                        <span class="editor-page-info" id="editorPageInfo">1 / 1</span>
+                        <button class="editor-tool-btn" id="editorNextPage" title="Next Page"><i class="fas fa-chevron-right"></i></button>
+                        <input type="number" id="editorPageJump" min="1" value="1" class="editor-page-jump" title="Jump to page">
+                    </div>
+                    <div class="editor-separator"></div>
+                    <div class="editor-tool-group">
+                        <button class="editor-tool-btn editor-btn-save" id="editorSaveBtn" title="Download PDF"><i class="fas fa-download"></i> Save</button>
+                        <button class="editor-tool-btn editor-btn-close" id="editorCloseBtn" title="Close"><i class="fas fa-times"></i></button>
+                    </div>
+                </div>
+
+                <div class="editor-main">
+                    <div class="editor-sidebar" id="editorSidebar">
+                        <div class="editor-sidebar-header">
+                            <h4>Pages</h4>
+                            <button class="editor-sidebar-toggle" id="editorSidebarToggle" title="Toggle Pages Panel"><i class="fas fa-chevron-left"></i></button>
+                        </div>
+                        <div class="editor-pages-list" id="editorPagesList"></div>
+                        <div class="editor-sidebar-actions">
+                            <button class="editor-page-action" id="editorAddBlankPage" title="Insert Blank Page"><i class="fas fa-plus"></i></button>
+                            <button class="editor-page-action" id="editorDupPage" title="Duplicate Page"><i class="fas fa-copy"></i></button>
+                            <button class="editor-page-action" id="editorDeletePage" title="Delete Page"><i class="fas fa-trash"></i></button>
+                            <button class="editor-page-action" id="editorExtractPage" title="Extract Page"><i class="fas fa-file-export"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="editor-canvas-container" id="editorCanvasContainer">
+                        <canvas id="editorCanvas"></canvas>
+                        <canvas id="editorOverlayCanvas"></canvas>
+                        <div id="editorTextOverlay"></div>
+                    </div>
+
+                    <div class="editor-properties-panel" id="editorPropertiesPanel">
+                        <div class="editor-props-header">
+                            <h4>Properties</h4>
+                        </div>
+                        <div class="editor-props-content" id="editorPropsContent">
+                            <p class="editor-props-hint">Select a tool to see its properties</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <input type="file" id="editorImageInput" accept="image/*" style="display:none;" aria-label="Insert image into PDF">
+            <input type="file" id="editorSigImageInput" accept="image/*" style="display:none;" aria-label="Upload signature image">
         </section>
 
         <!-- ==================== HISTORY SECTION ==================== -->
@@ -753,6 +851,8 @@
             <div class="footer-bottom">
                 <p><i class="fas fa-copyright"></i> 2026 Endy Edeson. All Rights Reserved.</p>
             </div>
+
+            <div class="app-dev-stats" id="appDevStats"></div>
         </footer>
     </main>
 
@@ -768,6 +868,7 @@
     <!-- CDN Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
 
@@ -781,6 +882,8 @@
     <script src="js/audio.js"></script>
     <script src="js/video.js"></script>
     <script src="js/pdf.js"></script>
+    <script src="js/pdf-editor.js"></script>
+    <script src="js/stats.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

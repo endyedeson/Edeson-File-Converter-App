@@ -36,6 +36,11 @@ const PDFTools = {
     },
 
     selectTool(tool) {
+        if (tool === 'edit-pdf') {
+            if (window.App) App.navigateTo('pdf-editor');
+            return;
+        }
+
         this.currentTool = tool;
         this.files = [];
         this._pdfPages = [];
@@ -47,11 +52,14 @@ const PDFTools = {
         const fileInput = document.getElementById('pdfFileInput');
         const pdfPreview = document.getElementById('pdfPreviewFrame');
         const pdfPagesArea = document.getElementById('pdfPagesArea');
+        const grid = document.querySelector('.tool-cards-grid');
+        const results = document.getElementById('pdfResults');
 
-        document.querySelector('.tool-cards-grid').style.display = 'none';
+        if (grid) grid.classList.add('hidden');
         if (toolArea) toolArea.classList.remove('hidden');
         if (pdfPreview) { pdfPreview.classList.add('hidden'); pdfPreview.src = ''; }
         if (pdfPagesArea) pdfPagesArea.innerHTML = '';
+        if (results) results.innerHTML = '';
 
         const titles = {
             'images-to-pdf': 'Convert Images to PDF',
@@ -64,7 +72,7 @@ const PDFTools = {
 
         if (fileInput) {
             if (tool === 'images-to-pdf') {
-                fileInput.accept = 'image/png,image/jpeg,image/webp,image/gif';
+                fileInput.accept = 'image/png,image/jpeg,image/webp,image/gif,image/bmp';
                 fileInput.multiple = true;
             } else {
                 fileInput.accept = '.pdf';
@@ -78,7 +86,7 @@ const PDFTools = {
         const previewHint = document.getElementById('pdfUploadHint');
         if (previewHint) {
             if (tool === 'images-to-pdf') {
-                previewHint.textContent = 'Supports PNG, JPG, WEBP, GIF images';
+                previewHint.textContent = 'Supports PNG, JPG, WEBP, GIF, BMP images';
             } else {
                 previewHint.textContent = 'Supports PDF files' + (tool === 'merge-pdfs' ? ' (select multiple)' : '');
             }
@@ -98,7 +106,7 @@ const PDFTools = {
         const pdfPagesArea = document.getElementById('pdfPagesArea');
 
         if (toolArea) toolArea.classList.add('hidden');
-        if (grid) grid.style.display = '';
+        if (grid) grid.classList.remove('hidden');
         if (previewFiles) previewFiles.innerHTML = '';
         if (results) results.innerHTML = '';
         if (pdfPreview) { pdfPreview.classList.add('hidden'); pdfPreview.src = ''; }
@@ -117,11 +125,11 @@ const PDFTools = {
         files.forEach(file => {
             const ext = Converter.getExtension(file.name);
             const validExts = this.currentTool === 'images-to-pdf'
-                ? ['png', 'jpg', 'jpeg', 'webp', 'gif']
+                ? ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp']
                 : ['pdf'];
 
             if (!validExts.includes(ext)) {
-                if (window.App) App.showToast(`Unsupported file type: .${ext}. ${this.currentTool === 'images-to-pdf' ? 'Please use PNG, JPG, WEBP, or GIF images.' : 'Please use PDF files.'}`, 'error');
+                if (window.App) App.showToast(`Unsupported file type: .${ext}. ${this.currentTool === 'images-to-pdf' ? 'Please use PNG, JPG, WEBP, GIF, or BMP images.' : 'Please use PDF files.'}`, 'error');
                 return;
             }
 
@@ -155,7 +163,9 @@ const PDFTools = {
 
             this._pdfPages = [];
             for (let i = 0; i < pageCount; i++) {
-                this._pdfPages.push({ index: i, removed: false });
+                const page = pdf.getPage(i);
+                const { width, height } = page.getSize();
+                this._pdfPages.push({ index: i, removed: false, rotation: 0, width, height });
             }
 
             this._renderPdfPages(pdfPagesArea, pageCount);
@@ -170,11 +180,12 @@ const PDFTools = {
         html += `<div class="pdf-page-list" id="pdfPageList">`;
 
         this._pdfPages.forEach((page, i) => {
+            const rotText = page.rotation ? ` (rotated ${page.rotation}°)` : '';
             html += `
                 <div class="pdf-page-item ${page.removed ? 'removed' : ''}" data-index="${i}" draggable="true">
                     <span class="page-handle"><i class="fas fa-grip-vertical"></i></span>
                     <span class="page-number">Page ${i + 1}</span>
-                    <span class="page-info">Page ${i + 1} of ${pageCount}</span>
+                    <span class="page-info">Page ${i + 1} of ${pageCount}${rotText}</span>
                     <button class="page-remove" onclick="PDFTools.togglePageRemove(${i})" title="${page.removed ? 'Restore' : 'Remove'}">
                         <i class="fas ${page.removed ? 'fa-undo' : 'fa-times'}"></i> ${page.removed ? 'Restore' : 'Remove'}
                     </button>
@@ -281,6 +292,8 @@ const PDFTools = {
 
         for (let i = 0; i < this.files.length; i++) {
             const item = this.files[i];
+            Converter.showLoading(`Processing image ${i + 1} of ${this.files.length}...`);
+
             const dataUrl = await Converter.readAsDataURL(item.file);
             const img = new Image();
             await new Promise((resolve, reject) => {
@@ -306,7 +319,8 @@ const PDFTools = {
             const x = (pageWidth - w) / 2;
             const y = (pageHeight - h) / 2;
 
-            doc.addImage(dataUrl, 'JPEG', x, y, w, h);
+            const format = item.file.type === 'image/png' ? 'PNG' : 'JPEG';
+            doc.addImage(dataUrl, format, x, y, w, h);
         }
 
         const filename = this.files.length === 1
@@ -337,8 +351,9 @@ const PDFTools = {
         const { PDFDocument } = PDFLib;
         const mergedPdf = await PDFDocument.create();
 
-        for (const item of this.files) {
-            const pdfBytes = await Converter.readAsArrayBuffer(item.file);
+        for (let i = 0; i < this.files.length; i++) {
+            Converter.showLoading(`Merging file ${i + 1} of ${this.files.length}...`);
+            const pdfBytes = await Converter.readAsArrayBuffer(this.files[i].file);
             const pdf = await PDFDocument.load(pdfBytes);
             const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
             pages.forEach(page => mergedPdf.addPage(page));
@@ -361,30 +376,68 @@ const PDFTools = {
         if (window.App) App.showToast(this.files.length + ' PDF files merged successfully!', 'success');
     },
 
+    _parsePageRanges(rangeStr, maxPages) {
+        const pages = new Set();
+        const parts = rangeStr.split(',').map(s => s.trim()).filter(Boolean);
+
+        for (const part of parts) {
+            if (part.includes('-')) {
+                const [startStr, endStr] = part.split('-').map(s => s.trim());
+                const start = parseInt(startStr);
+                const end = parseInt(endStr);
+                if (isNaN(start) || isNaN(end)) continue;
+                const s = Math.max(1, Math.min(start, maxPages));
+                const e = Math.max(s, Math.min(end, maxPages));
+                for (let i = s; i <= e; i++) pages.add(i);
+            } else {
+                const num = parseInt(part);
+                if (!isNaN(num) && num >= 1 && num <= maxPages) {
+                    pages.add(num);
+                }
+            }
+        }
+
+        return Array.from(pages).sort((a, b) => a - b);
+    },
+
     async splitPdf() {
         const { PDFDocument } = PDFLib;
         const file = this.files[0].file;
         const pdfBytes = await Converter.readAsArrayBuffer(file);
         const pdf = await PDFDocument.load(pdfBytes);
+        const totalPages = pdf.getPageCount();
 
-        const startPage = parseInt(document.getElementById('pdfSplitStart')?.value || '1');
-        const endPage = parseInt(document.getElementById('pdfSplitEnd')?.value || pdf.getPageCount());
+        const rangeInput = document.getElementById('pdfSplitRange');
+        let pageNumbers;
 
-        const start = Math.max(1, Math.min(startPage, pdf.getPageCount()));
-        const end = Math.max(start, Math.min(endPage, pdf.getPageCount()));
+        if (rangeInput && rangeInput.value.trim()) {
+            pageNumbers = this._parsePageRanges(rangeInput.value.trim(), totalPages);
+        } else {
+            const startPage = parseInt(document.getElementById('pdfSplitStart')?.value || '1');
+            const endPage = parseInt(document.getElementById('pdfSplitEnd')?.value || totalPages);
+            const start = Math.max(1, Math.min(startPage, totalPages));
+            const end = Math.max(start, Math.min(endPage, totalPages));
+            pageNumbers = [];
+            for (let i = start; i <= end; i++) pageNumbers.push(i);
+        }
+
+        if (pageNumbers.length === 0) {
+            if (window.App) App.showToast('No valid pages selected. Use format: 1-5, 8, 10-12', 'warning');
+            return;
+        }
 
         const newPdf = await PDFDocument.create();
-        const indices = [];
-        for (let i = start - 1; i < end; i++) {
-            indices.push(i);
-        }
+        const indices = pageNumbers.map(p => p - 1);
         const pages = await newPdf.copyPages(pdf, indices);
         pages.forEach(page => newPdf.addPage(page));
 
         const newPdfBytes = await newPdf.save();
         const blob = new Blob([newPdfBytes], { type: 'application/pdf' });
         const baseName = file.name.replace(/\.[^.]+$/, '');
-        const filename = `${baseName}_pages_${start}-${end}.pdf`;
+        const rangeLabel = pageNumbers.length <= 4
+            ? pageNumbers.join('-')
+            : `${pageNumbers.length}pages`;
+        const filename = `${baseName}_pages_${rangeLabel}.pdf`;
         Converter.downloadBlob(blob, filename);
 
         HistoryManager.addRecord({
@@ -397,7 +450,7 @@ const PDFTools = {
         });
 
         this._showResult(filename, blob.size);
-        if (window.App) App.showToast(`Extracted pages ${start}-${end} successfully!`, 'success');
+        if (window.App) App.showToast(`Extracted ${pageNumbers.length} page(s) successfully!`, 'success');
     },
 
     async rotatePdf() {
@@ -407,9 +460,18 @@ const PDFTools = {
         const pdf = await PDFDocument.load(pdfBytes);
 
         const degrees = parseInt(document.getElementById('pdfRotation')?.value || '90');
+
+        const activePages = this._pdfPages.filter(p => !p.removed);
+        if (activePages.length === 0) {
+            if (window.App) App.showToast('All pages are removed. Restore at least one page.', 'warning');
+            return;
+        }
+
         const pages = pdf.getPages();
-        pages.forEach(page => {
-            page.setRotation(page.getRotation().angle + degrees);
+        activePages.forEach(pageInfo => {
+            if (pages[pageInfo.index]) {
+                pages[pageInfo.index].setRotation(pages[pageInfo.index].getRotation().angle + degrees);
+            }
         });
 
         const modifiedBytes = await pdf.save();
@@ -432,6 +494,8 @@ const PDFTools = {
     },
 
     async previewPdf() {
+        if (this.files.length === 0) return;
+
         const file = this.files[0].file;
         const url = URL.createObjectURL(file);
 

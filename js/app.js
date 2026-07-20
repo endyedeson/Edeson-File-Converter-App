@@ -21,6 +21,8 @@ const App = {
         AudioConverter.init();
         VideoConverter.init();
         PDFTools.init();
+        PDFEditor.init();
+        DevStats.init();
 
         // Bind navigation and interaction
         this.bindNavigation();
@@ -296,7 +298,7 @@ const App = {
             { name: 'Document Converter', page: 'document-converter', keywords: ['document', 'text', 'html', 'json', 'csv', 'xml', 'markdown'] },
             { name: 'Audio Converter', page: 'audio-converter', keywords: ['audio', 'music', 'mp3', 'wav', 'ogg', 'sound', 'aac', 'm4a', 'flac', 'opus', 'aiff'] },
             { name: 'Video Converter', page: 'video-converter', keywords: ['video', 'mp4', 'webm', 'movie', 'mov', 'avi', 'mkv', 'm4v', 'ogv'] },
-            { name: 'PDF Tools', page: 'pdf-tools', keywords: ['pdf', 'merge', 'split', 'rotate', 'preview'] }
+            { name: 'PDF Tools', page: 'pdf-tools', keywords: ['pdf', 'merge', 'split', 'rotate', 'preview', 'edit pdf', 'editor'] }
         ];
 
         const match = converters.find(c =>
