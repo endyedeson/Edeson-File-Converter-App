@@ -138,6 +138,32 @@
         <section class="section" id="section-dashboard">
             <h1 class="section-heading">Dashboard</h1>
 
+            <div class="dashboard-upload-section">
+                <div class="card">
+                    <h2>Quick Upload</h2>
+                    <div class="upload-zone" id="dashUploadZone">
+                        <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                        <h3>Drag & Drop files here</h3>
+                        <p>or click to browse</p>
+                        <p class="upload-hint">Supports images, documents, audio, video, and PDF</p>
+                        <input type="file" id="dashFileInput" multiple aria-label="Upload files for quick conversion">
+                    </div>
+                    <div class="file-preview-area" id="dashFilePreview"></div>
+                </div>
+            </div>
+
+            <div class="privacy-notice-card">
+                <div class="privacy-notice-card-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <div class="privacy-notice-card-content">
+                    <h3>Your Privacy Comes First</h3>
+                    <p>All file conversions are performed entirely within your web browser.</p>
+                    <p>Your files are never uploaded to any server.</p>
+                    <p>Your files remain within your browser throughout the conversion process, helping to keep your documents private and secure.</p>
+                </div>
+            </div>
+
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-icon"><i class="fas fa-file-conversion"></i></div>
@@ -180,20 +206,6 @@
                         <h3 id="statStorageUsed">0 KB</h3>
                         <p>Storage Used</p>
                     </div>
-                </div>
-            </div>
-
-            <div class="dashboard-upload-section">
-                <div class="card">
-                    <h2>Quick Upload</h2>
-                    <div class="upload-zone" id="dashUploadZone">
-                        <i class="fas fa-cloud-upload-alt upload-icon"></i>
-                        <h3>Drag & Drop files here</h3>
-                        <p>or click to browse</p>
-                        <p class="upload-hint">Supports images, documents, audio, video, and PDF</p>
-                        <input type="file" id="dashFileInput" multiple aria-label="Upload files for quick conversion">
-                    </div>
-                    <div class="file-preview-area" id="dashFilePreview"></div>
                 </div>
             </div>
 

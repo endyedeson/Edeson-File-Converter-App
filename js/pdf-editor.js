@@ -37,10 +37,12 @@ const PDFEditor = {
         watermarkOpacity: 0.3,
         watermarkRotation: -45,
         watermarkFontSize: 48,
-        watermarkColor: '#000000'
+        watermarkColor: '#000000',
+        watermarkText: 'WATERMARK'
     },
 
     init() {
+        this._lastPointerPos = { x: 0, y: 0 };
         this._bindUpload();
         this._bindToolbar();
         this._bindCanvasEvents();
@@ -48,6 +50,7 @@ const PDFEditor = {
         this._bindPageActions();
         this._bindSave();
         this._bindKeyboard();
+        this._bindContainerScroll();
     },
 
     // ==================== UPLOAD ====================
@@ -117,15 +120,12 @@ const PDFEditor = {
         const canvas = document.getElementById('editorCanvas');
         const overlay = document.getElementById('editorOverlayCanvas');
         const container = document.getElementById('editorCanvasContainer');
+        const textOverlay = document.getElementById('editorTextOverlay');
 
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         overlay.width = viewport.width;
         overlay.height = viewport.height;
-        overlay.style.width = viewport.width + 'px';
-        overlay.style.height = viewport.height + 'px';
-        overlay.style.left = canvas.offsetLeft + 'px';
-        overlay.style.top = canvas.offsetTop + 'px';
 
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -133,6 +133,15 @@ const PDFEditor = {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         await page.render({ canvasContext: ctx, viewport }).promise;
+
+        overlay.style.left = container.scrollLeft + 'px';
+        overlay.style.top = container.scrollTop + 'px';
+        if (textOverlay) {
+            textOverlay.style.width = viewport.width + 'px';
+            textOverlay.style.height = viewport.height + 'px';
+            textOverlay.style.left = container.scrollLeft + 'px';
+            textOverlay.style.top = container.scrollTop + 'px';
+        }
 
         this._renderAnnotations();
         this._highlightThumbnail();
@@ -402,7 +411,9 @@ const PDFEditor = {
                         const t = ann.texts[i];
                         const lines = (t.content || '').split('\n');
                         const lineHeight = (t.fontSize || 16) * 1.3;
-                        if (pos.x >= t.x - 4 && pos.x <= t.x + 204 && pos.y >= t.y - 4 && pos.y <= t.y + lines.length * lineHeight + 4) {
+                        const maxLineW = Math.max(...lines.map(l => this._measureTextWidth(l, t)));
+                        const w = maxLineW + 8;
+                        if (pos.x >= t.x - 4 && pos.x <= t.x + w + 4 && pos.y >= t.y - 4 && pos.y <= t.y + lines.length * lineHeight + 4) {
                             this._startTextEdit(t);
                             return;
                         }
@@ -423,6 +434,7 @@ const PDFEditor = {
 
     _onPointerDown(e) {
         const pos = this._getCanvasCoords(e);
+        this._lastPointerPos = pos;
         this.isDrawing = true;
 
         if (this.tool === 'select') {
@@ -447,6 +459,7 @@ const PDFEditor = {
     _onPointerMove(e) {
         if (!this.isDrawing) return;
         const pos = this._getCanvasCoords(e);
+        this._lastPointerPos = pos;
 
         if (this.tool === 'select' && this.dragState) {
             this._handleSelectMove(pos);
@@ -465,7 +478,7 @@ const PDFEditor = {
         if (this.tool === 'select' && this.dragState) {
             this.dragState = null;
         } else if (this.tool === 'shape' && this.dragState) {
-            const pos = this._getCanvasCoords(e);
+            const pos = (e && e.clientX !== undefined) ? this._getCanvasCoords(e) : this._lastPointerPos;
             this._finalizeShape(pos);
         } else if (this.tool === 'draw' || this.tool === 'eraser') {
             this._finalizeDrawing();
@@ -484,7 +497,17 @@ const PDFEditor = {
             const t = ann.texts[i];
             const lines = (t.content || '').split('\n');
             const lineHeight = (t.fontSize || 16) * 1.3;
-            const w = 200;
+            const maxLineW = Math.max(...lines.map(l => {
+                const c = document.createElement('canvas');
+                const cx = c.getContext('2d');
+                let f = '';
+                if (t.italic) f += 'italic ';
+                if (t.bold) f += 'bold ';
+                f += (t.fontSize || 16) + 'px ' + (t.font || 'Helvetica');
+                cx.font = f;
+                return cx.measureText(l).width;
+            }));
+            const w = maxLineW + 8;
             const h = lines.length * lineHeight;
             if (pos.x >= t.x - 4 && pos.x <= t.x + w + 4 && pos.y >= t.y - 4 && pos.y <= t.y + h + 4) {
                 this.selectedElement = t;
@@ -639,6 +662,10 @@ const PDFEditor = {
             this._renderAnnotations();
             return;
         }
+        if (w === undefined || h === undefined || isNaN(w) || isNaN(h)) {
+            this.dragState = null;
+            return;
+        }
 
         this._saveUndo();
         this.annotations[this.currentPage].shapes.push({
@@ -697,6 +724,19 @@ const PDFEditor = {
 
     async _insertImage(file) {
         const dataUrl = await Converter.readAsDataURL(file);
+
+        if (this.tool === 'watermark') {
+            const img = new Image();
+            img.onload = () => {
+                this.defaultProps._watermarkImage = img;
+                this.defaultProps._watermarkDataUrl = dataUrl;
+                this.defaultProps.watermarkType = 'image';
+                if (window.App) App.showToast('Watermark image ready. Click on the page to place it.', 'info');
+            };
+            img.src = dataUrl;
+            return;
+        }
+
         const img = new Image();
         img.onload = () => {
             this._saveUndo();
@@ -840,18 +880,29 @@ const PDFEditor = {
     // ==================== WATERMARK ====================
 
     _handleWatermarkDown(pos) {
+        const wmType = this.defaultProps.watermarkType || 'text';
+        if (wmType === 'image' && !this.defaultProps._watermarkImage) {
+            if (window.App) App.showToast('Upload an image watermark first', 'warning');
+            return;
+        }
         this._saveUndo();
-        this.annotations[this.currentPage].watermarks.push({
-            type: 'text',
-            content: this.defaultProps.watermarkText || 'WATERMARK',
+        const wm = {
+            type: wmType,
             x: pos.x,
             y: pos.y,
             opacity: this.defaultProps.watermarkOpacity,
-            rotation: this.defaultProps.watermarkRotation,
-            fontSize: this.defaultProps.watermarkFontSize,
-            color: this.defaultProps.watermarkColor,
-            font: this.defaultFont
-        });
+            rotation: this.defaultProps.watermarkRotation
+        };
+        if (wmType === 'text') {
+            wm.content = this.defaultProps.watermarkText || 'WATERMARK';
+            wm.fontSize = this.defaultProps.watermarkFontSize;
+            wm.color = this.defaultProps.watermarkColor;
+            wm.font = this.defaultFont;
+        } else if (wmType === 'image') {
+            wm._htmlImg = this.defaultProps._watermarkImage;
+            wm.dataUrl = this.defaultProps._watermarkDataUrl;
+        }
+        this.annotations[this.currentPage].watermarks.push(wm);
         this._renderAnnotations();
         this._autosave();
     },
@@ -942,6 +993,23 @@ const PDFEditor = {
         const jump = document.getElementById('editorPageJump');
         if (info) info.textContent = `${this.currentPage + 1} / ${this.totalPages}`;
         if (jump) { jump.value = this.currentPage + 1; jump.max = this.totalPages; }
+    },
+
+    _bindContainerScroll() {
+        const container = document.getElementById('editorCanvasContainer');
+        if (!container) return;
+        container.addEventListener('scroll', () => {
+            const overlay = document.getElementById('editorOverlayCanvas');
+            const textOverlay = document.getElementById('editorTextOverlay');
+            if (overlay) {
+                overlay.style.left = container.scrollLeft + 'px';
+                overlay.style.top = container.scrollTop + 'px';
+            }
+            if (textOverlay) {
+                textOverlay.style.left = container.scrollLeft + 'px';
+                textOverlay.style.top = container.scrollTop + 'px';
+            }
+        });
     },
 
     // ==================== PAGE MANAGEMENT ====================
@@ -1148,16 +1216,30 @@ const PDFEditor = {
         } else if (t === 'watermark') {
             html = `
                 <div class="editor-prop-group">
-                    <label>Watermark Text</label>
-                    <input type="text" id="propWatermarkText" value="WATERMARK" placeholder="Enter watermark text">
+                    <label>Watermark Type</label>
+                    <div style="display:flex;gap:6px;">
+                        <button class="btn btn-primary btn-sm" id="propWmTextType" style="flex:1;">Text</button>
+                        <button class="btn btn-secondary btn-sm" id="propWmImageType" style="flex:1;">Image</button>
+                    </div>
                 </div>
-                <div class="editor-prop-group">
-                    <label>Font Size: <span id="propWmFontSizeVal">${this.defaultProps.watermarkFontSize}</span>px</label>
-                    <input type="range" id="propWmFontSize" min="12" max="120" value="${this.defaultProps.watermarkFontSize}">
+                <div id="propWmTextSettings">
+                    <div class="editor-prop-group">
+                        <label>Watermark Text</label>
+                        <input type="text" id="propWatermarkText" value="WATERMARK" placeholder="Enter watermark text">
+                    </div>
+                    <div class="editor-prop-group">
+                        <label>Font Size: <span id="propWmFontSizeVal">${this.defaultProps.watermarkFontSize}</span>px</label>
+                        <input type="range" id="propWmFontSize" min="12" max="120" value="${this.defaultProps.watermarkFontSize}">
+                    </div>
+                    <div class="editor-prop-group">
+                        <label>Color</label>
+                        <input type="color" id="propWmColor" value="${this.defaultProps.watermarkColor}">
+                    </div>
                 </div>
-                <div class="editor-prop-group">
-                    <label>Color</label>
-                    <input type="color" id="propWmColor" value="${this.defaultProps.watermarkColor}">
+                <div id="propWmImageSettings" style="display:none;">
+                    <div class="editor-prop-group">
+                        <button class="btn btn-secondary btn-sm" id="propWmUploadImage" style="width:100%;"><i class="fas fa-upload"></i> Upload Image</button>
+                    </div>
                 </div>
                 <div class="editor-prop-group">
                     <label>Opacity: <span id="propWmOpacityVal">${Math.round(this.defaultProps.watermarkOpacity * 100)}%</span></label>
@@ -1251,6 +1333,24 @@ const PDFEditor = {
             this.defaultProps.watermarkRotation = parseInt(e.target.value);
             document.getElementById('propWmRotationVal').textContent = e.target.value + '°';
         });
+        bind('propWmTextType', 'click', () => {
+            document.getElementById('propWmTextSettings').style.display = '';
+            document.getElementById('propWmImageSettings').style.display = 'none';
+            document.getElementById('propWmTextType').className = 'btn btn-primary btn-sm';
+            document.getElementById('propWmImageType').className = 'btn btn-secondary btn-sm';
+            this.defaultProps.watermarkType = 'text';
+        });
+        bind('propWmImageType', 'click', () => {
+            document.getElementById('propWmTextSettings').style.display = 'none';
+            document.getElementById('propWmImageSettings').style.display = '';
+            document.getElementById('propWmTextType').className = 'btn btn-secondary btn-sm';
+            document.getElementById('propWmImageType').className = 'btn btn-primary btn-sm';
+            this.defaultProps.watermarkType = 'image';
+            document.getElementById('editorImageInput')?.click();
+        });
+        bind('propWmUploadImage', 'click', () => {
+            document.getElementById('editorImageInput')?.click();
+        });
 
         document.querySelectorAll('.editor-color-swatch').forEach(sw => {
             sw.addEventListener('click', () => {
@@ -1259,6 +1359,18 @@ const PDFEditor = {
                 if (colorInput) colorInput.value = sw.dataset.color;
             });
         });
+    },
+
+    _measureTextWidth(text, t) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        let fontStr = '';
+        if (t.italic) fontStr += 'italic ';
+        if (t.bold) fontStr += 'bold ';
+        fontStr += (t.fontSize || 16) + 'px ';
+        fontStr += (t.font || 'Helvetica');
+        ctx.font = fontStr;
+        return ctx.measureText(text.content || '').width;
     },
 
     _toHex(color) {

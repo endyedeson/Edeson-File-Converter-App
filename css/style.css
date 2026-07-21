@@ -1894,6 +1894,58 @@ audio.media-preview {
 }
 
 /* ============================================
+   Privacy Notice Card
+   ============================================ */
+
+.privacy-notice-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: rgba(33, 150, 243, 0.08);
+  border: 1px solid rgba(33, 150, 243, 0.25);
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin-bottom: 32px;
+  transition: var(--transition);
+}
+
+.privacy-notice-card:hover {
+  background: rgba(33, 150, 243, 0.12);
+  border-color: rgba(33, 150, 243, 0.4);
+}
+
+.privacy-notice-card-icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  background: rgba(33, 150, 243, 0.15);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  color: #2196f3;
+}
+
+.privacy-notice-card-content h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.privacy-notice-card-content p {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 4px;
+}
+
+.privacy-notice-card-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* ============================================
    History Page
    ============================================ */
 
