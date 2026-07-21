@@ -71,6 +71,81 @@
 /* ------------------------------------------------------------
    Mobile (max-width: 768px)
    ------------------------------------------------------------ */
+/* ------------------------------------------------------------
+   Quick Features Menu (mobile only, below Dashboard heading)
+   ------------------------------------------------------------ */
+.quick-features-menu {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .quick-features-menu {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+    justify-content: center;
+  }
+
+  .quick-feature-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    flex: 1 1 calc(33.333% - 8px);
+    min-width: 80px;
+    max-width: 120px;
+    padding: 12px 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 500;
+    transition: all 0.25s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+
+  .quick-feature-btn i {
+    font-size: 1.3rem;
+    color: var(--secondary);
+    transition: transform 0.25s ease;
+  }
+
+  .quick-feature-btn:hover,
+  .quick-feature-btn:active {
+    background: var(--secondary);
+    color: var(--primary);
+    border-color: var(--secondary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(249, 168, 37, 0.3);
+  }
+
+  .quick-feature-btn:hover i,
+  .quick-feature-btn:active i {
+    color: var(--primary);
+    transform: scale(1.1);
+  }
+
+  .quick-feature-btn span {
+    line-height: 1.2;
+  }
+}
+
+@media (max-width: 480px) {
+  .quick-feature-btn {
+    flex: 1 1 calc(50% - 8px);
+    max-width: none;
+    min-width: 0;
+  }
+}
+
+/* ------------------------------------------------------------
+   Mobile (max-width: 768px)
+   ------------------------------------------------------------ */
 @media (max-width: 768px) {
 
   /* Sidebar: full-width slide-in with icons + text labels */

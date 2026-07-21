@@ -34,11 +34,14 @@ const PDFEditor = {
         brushSize: 3,
         brushColor: '#000000',
         eraserSize: 20,
+        watermarkType: 'text',
         watermarkOpacity: 0.3,
         watermarkRotation: -45,
         watermarkFontSize: 48,
         watermarkColor: '#000000',
-        watermarkText: 'WATERMARK'
+        watermarkText: 'WATERMARK',
+        _watermarkImage: null,
+        _watermarkDataUrl: null
     },
 
     init() {
@@ -134,13 +137,18 @@ const PDFEditor = {
 
         await page.render({ canvasContext: ctx, viewport }).promise;
 
-        overlay.style.left = container.scrollLeft + 'px';
-        overlay.style.top = container.scrollTop + 'px';
+        const scrollLeft = container ? container.scrollLeft || 0 : 0;
+        const scrollTop = container ? container.scrollTop || 0 : 0;
+        overlay.style.position = 'absolute';
+        overlay.style.left = scrollLeft + 'px';
+        overlay.style.top = scrollTop + 'px';
+        overlay.style.width = viewport.width + 'px';
+        overlay.style.height = viewport.height + 'px';
         if (textOverlay) {
             textOverlay.style.width = viewport.width + 'px';
             textOverlay.style.height = viewport.height + 'px';
-            textOverlay.style.left = container.scrollLeft + 'px';
-            textOverlay.style.top = container.scrollTop + 'px';
+            textOverlay.style.left = scrollLeft + 'px';
+            textOverlay.style.top = scrollTop + 'px';
         }
 
         this._renderAnnotations();
@@ -321,7 +329,7 @@ const PDFEditor = {
             ctx.textBaseline = 'middle';
             ctx.fillText(w.content || 'WATERMARK', 0, 0);
         } else if (w.type === 'image' && w._htmlImg) {
-            const wmSize = 200;
+            const wmSize = w.size || 200;
             ctx.drawImage(w._htmlImg, -wmSize / 2, -wmSize / 2, wmSize, wmSize);
         }
         ctx.restore();
@@ -479,7 +487,7 @@ const PDFEditor = {
             this.dragState = null;
         } else if (this.tool === 'shape' && this.dragState) {
             const pos = (e && e.clientX !== undefined) ? this._getCanvasCoords(e) : this._lastPointerPos;
-            this._finalizeShape(pos);
+            if (pos) this._finalizeShape(pos);
         } else if (this.tool === 'draw' || this.tool === 'eraser') {
             this._finalizeDrawing();
         }
@@ -583,9 +591,8 @@ const PDFEditor = {
     },
 
     _startTextEdit(textEl) {
-        const overlay = document.getElementById('editorOverlayCanvas');
         const container = document.getElementById('editorTextOverlay');
-        if (!overlay || !container) return;
+        if (!container) return;
 
         const existing = container.querySelector('.editor-text-box');
         if (existing) existing.remove();
@@ -597,24 +604,27 @@ const PDFEditor = {
         box.style.left = textEl.x + 'px';
         box.style.top = textEl.y + 'px';
         box.style.fontSize = textEl.fontSize + 'px';
-        box.style.fontFamily = textEl.font || this.defaultFont;
+        box.style.fontFamily = (textEl.font || this.defaultFont) + ', sans-serif';
         box.style.color = textEl.color || '#000';
         box.style.fontWeight = textEl.bold ? 'bold' : 'normal';
         box.style.fontStyle = textEl.italic ? 'italic' : 'normal';
         box.style.textDecoration = textEl.underline ? 'underline' : 'none';
         box.style.textAlign = textEl.align || 'left';
+        box.style.minWidth = '60px';
+        box.style.minHeight = '24px';
+        box.style.zIndex = '10';
 
-        box.addEventListener('blur', () => {
+        const commitEdit = () => {
             textEl.content = box.textContent || 'Text';
-            box.remove();
+            if (box.parentNode) box.remove();
             this._renderAnnotations();
             this._autosave();
-        });
+        };
 
+        box.addEventListener('blur', commitEdit);
         box.addEventListener('input', () => {
             textEl.content = box.textContent || '';
         });
-
         box.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 box.blur();
@@ -901,6 +911,7 @@ const PDFEditor = {
         } else if (wmType === 'image') {
             wm._htmlImg = this.defaultProps._watermarkImage;
             wm.dataUrl = this.defaultProps._watermarkDataUrl;
+            wm.size = 200;
         }
         this.annotations[this.currentPage].watermarks.push(wm);
         this._renderAnnotations();
@@ -999,17 +1010,19 @@ const PDFEditor = {
         const container = document.getElementById('editorCanvasContainer');
         if (!container) return;
         container.addEventListener('scroll', () => {
+            const scrollLeft = container.scrollLeft || 0;
+            const scrollTop = container.scrollTop || 0;
             const overlay = document.getElementById('editorOverlayCanvas');
             const textOverlay = document.getElementById('editorTextOverlay');
             if (overlay) {
-                overlay.style.left = container.scrollLeft + 'px';
-                overlay.style.top = container.scrollTop + 'px';
+                overlay.style.left = scrollLeft + 'px';
+                overlay.style.top = scrollTop + 'px';
             }
             if (textOverlay) {
-                textOverlay.style.left = container.scrollLeft + 'px';
-                textOverlay.style.top = container.scrollTop + 'px';
+                textOverlay.style.left = scrollLeft + 'px';
+                textOverlay.style.top = scrollTop + 'px';
             }
-        });
+        }, { passive: true });
     },
 
     // ==================== PAGE MANAGEMENT ====================
@@ -1511,7 +1524,7 @@ const PDFEditor = {
                     }
                 }
 
-                ann.watermarks.forEach(w => {
+                for (const w of ann.watermarks) {
                     if (w.type === 'text') {
                         const fontSize = (w.fontSize || 48) * scale;
                         pdf.drawText(w.content || 'WATERMARK', {
@@ -1522,8 +1535,28 @@ const PDFEditor = {
                             color: this._hexToRgb(w.color || '#000000'),
                             opacity: w.opacity || 0.3
                         });
+                    } else if (w.type === 'image' && w.dataUrl) {
+                        try {
+                            const imgBytes = this._dataUrlToBytes(w.dataUrl);
+                            let embedded;
+                            if (w.dataUrl.includes('image/png')) {
+                                embedded = await pdf.embedPng(imgBytes);
+                            } else {
+                                embedded = await pdf.embedJpg(imgBytes);
+                            }
+                            const wmSize = (w.size || 200) * scale;
+                            pdf.drawImage(embedded, {
+                                x: width / 2 - wmSize / 2,
+                                y: height / 2 - wmSize / 2,
+                                width: wmSize,
+                                height: wmSize,
+                                opacity: w.opacity || 0.3
+                            });
+                        } catch (e) {
+                            console.warn('Failed to embed watermark image:', e);
+                        }
                     }
-                });
+                }
             }
 
             const pdfBytes = await pdf.save();

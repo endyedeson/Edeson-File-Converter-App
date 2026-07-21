@@ -30,6 +30,7 @@ const App = {
         this.bindMobileSidebar();
         this.bindDashboardUpload();
         this.bindHeaderActions();
+        this.bindQuickFeatures();
         this.bindHeaderScroll();
 
         // Set initial page
@@ -126,6 +127,18 @@ const App = {
     },
 
     // ==================== DASHBOARD ====================
+
+    /**
+     * Bind mobile quick features menu buttons
+     */
+    bindQuickFeatures() {
+        document.querySelectorAll('.quick-feature-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const page = btn.dataset.quick;
+                if (page) this.navigateTo(page);
+            });
+        });
+    },
 
     /**
      * Bind dashboard quick upload zone
