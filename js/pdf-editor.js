@@ -1383,7 +1383,7 @@ const PDFEditor = {
         fontStr += (t.fontSize || 16) + 'px ';
         fontStr += (t.font || 'Helvetica');
         ctx.font = fontStr;
-        return ctx.measureText(text.content || '').width;
+        return ctx.measureText(text || '').width;
     },
 
     _toHex(color) {
@@ -1446,116 +1446,63 @@ const PDFEditor = {
             const { PDFDocument } = PDFLib;
             const pdf = await PDFDocument.load(this.pdfBytes);
 
+            const renderScale = 2;
+
             for (let i = 0; i < this.totalPages; i++) {
                 const page = pdf.getPage(i);
                 const { width, height } = page.getSize();
                 const ann = this.annotations[i];
                 if (!ann) continue;
 
-                const scale = width / (this.pdfDoc ? 612 : width);
-                const { StandardFonts } = PDFLib;
-                const font = await pdf.embedFont(StandardFonts.Helvetica);
-                const boldFont = await pdf.embedFont(StandardFonts.HelveticaBold);
+                const hasAnnotations = ann.texts.length > 0 || ann.shapes.length > 0 ||
+                    ann.drawings.length > 0 || ann.images.length > 0 || ann.watermarks.length > 0;
+                if (!hasAnnotations) continue;
 
-                ann.texts.forEach(t => {
-                    const tx = t.x * scale;
-                    const ty = height - (t.y * scale) - ((t.fontSize || 16) * scale);
-                    const fontSize = (t.fontSize || 16) * scale;
-                    const useFont = t.bold ? boldFont : font;
-                    const lines = (t.content || '').split('\n');
-                    const lineHeight = fontSize * 1.3;
-                    lines.forEach((line, li) => {
-                        pdf.drawText(line, {
-                            x: tx,
-                            y: ty - li * lineHeight,
-                            size: fontSize,
-                            font: useFont,
-                            color: this._hexToRgb(t.color || '#000000')
-                        });
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.round(width * renderScale);
+                canvas.height = Math.round(height * renderScale);
+                const ctx = canvas.getContext('2d');
+
+                const s = renderScale / this.zoom;
+                ctx.scale(s, s);
+
+                ann.shapes.forEach(shape => this._drawShape(ctx, shape));
+
+                ann.drawings.forEach(d => {
+                    if (!d.points || d.points.length < 2) return;
+                    ctx.save();
+                    if (d.eraser) {
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.lineWidth = d.size || 20;
+                    } else {
+                        ctx.strokeStyle = d.color || '#000';
+                        ctx.lineWidth = d.size || 3;
+                    }
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(d.points[0].x, d.points[0].y);
+                    for (let j = 1; j < d.points.length; j++) {
+                        ctx.lineTo(d.points[j].x, d.points[j].y);
+                    }
+                    ctx.stroke();
+                    ctx.restore();
+                });
+
+                ann.images.forEach(img => this._drawImageAnnotation(ctx, img));
+                ann.watermarks.forEach(w => this._drawWatermark(ctx, w));
+                ann.texts.forEach(t => this._drawTextOnCanvas(ctx, t));
+
+                try {
+                    const imgDataUrl = canvas.toDataURL('image/png');
+                    const imgBytes = this._dataUrlToBytes(imgDataUrl);
+                    const embeddedImg = await pdf.embedPng(imgBytes);
+                    page.drawImage(embeddedImg, {
+                        x: 0, y: 0,
+                        width: width, height: height
                     });
-                });
-
-                ann.shapes.forEach(s => {
-                    const x1 = Math.min(s.x, s.x + s.w) * scale;
-                    const y1 = height - Math.max(s.y, s.y + s.h) * scale;
-                    const x2 = Math.max(s.x, s.x + s.w) * scale;
-                    const y2 = height - Math.min(s.y, s.y + s.h) * scale;
-                    const sw = (s.borderWidth || 2) * scale;
-                    const borderColor = this._hexToRgb(s.borderColor || '#000000');
-
-                    if (s.shapeType === 'rectangle') {
-                        pdf.drawRectangle({
-                            x: x1, y: y1, width: x2 - x1, height: y2 - y1,
-                            borderColor: borderColor, borderWidth: sw
-                        });
-                    } else if (s.shapeType === 'circle') {
-                        pdf.drawEllipse({
-                            x: (x1 + x2) / 2, y: (y1 + y2) / 2,
-                            xScale: (x2 - x1) / 2, yScale: (y2 - y1) / 2,
-                            borderColor: borderColor, borderWidth: sw
-                        });
-                    } else if (s.shapeType === 'line' || s.shapeType === 'arrow') {
-                        pdf.drawLine({
-                            start: { x: s.x * scale, y: height - s.y * scale },
-                            end: { x: (s.x + s.w) * scale, y: height - (s.y + s.h) * scale },
-                            borderColor: borderColor, borderWidth: sw
-                        });
-                    }
-                });
-
-                for (const img of ann.images) {
-                    try {
-                        if (img.dataUrl) {
-                            const imgBytes = this._dataUrlToBytes(img.dataUrl);
-                            let embedded;
-                            if (img.dataUrl.includes('image/png')) {
-                                embedded = await pdf.embedPng(imgBytes);
-                            } else {
-                                embedded = await pdf.embedJpg(imgBytes);
-                            }
-                            const ix = img.x * scale;
-                            const iy = height - (img.y * scale) - (img.h * scale);
-                            const iw = img.w * scale;
-                            const ih = img.h * scale;
-                            pdf.drawImage(embedded, { x: ix, y: iy, width: iw, height: ih });
-                        }
-                    } catch (e) {
-                        console.warn('Failed to embed image:', e);
-                    }
-                }
-
-                for (const w of ann.watermarks) {
-                    if (w.type === 'text') {
-                        const fontSize = (w.fontSize || 48) * scale;
-                        pdf.drawText(w.content || 'WATERMARK', {
-                            x: width / 2 - (w.content || 'WATERMARK').length * fontSize * 0.25,
-                            y: height / 2,
-                            size: fontSize,
-                            font: font,
-                            color: this._hexToRgb(w.color || '#000000'),
-                            opacity: w.opacity || 0.3
-                        });
-                    } else if (w.type === 'image' && w.dataUrl) {
-                        try {
-                            const imgBytes = this._dataUrlToBytes(w.dataUrl);
-                            let embedded;
-                            if (w.dataUrl.includes('image/png')) {
-                                embedded = await pdf.embedPng(imgBytes);
-                            } else {
-                                embedded = await pdf.embedJpg(imgBytes);
-                            }
-                            const wmSize = (w.size || 200) * scale;
-                            pdf.drawImage(embedded, {
-                                x: width / 2 - wmSize / 2,
-                                y: height / 2 - wmSize / 2,
-                                width: wmSize,
-                                height: wmSize,
-                                opacity: w.opacity || 0.3
-                            });
-                        } catch (e) {
-                            console.warn('Failed to embed watermark image:', e);
-                        }
-                    }
+                } catch (e) {
+                    console.warn('Failed to embed annotations for page ' + (i + 1) + ':', e);
                 }
             }
 
